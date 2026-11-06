@@ -17,7 +17,7 @@ SEED = 20261106
 REFERENCE_DATE = datetime(2026, 11, 1)  # last day with movements
 DAYS = 60
 N_CUSTOMERS = 10
-CURRENCY = "CLP"
+CURRENCY = "PEN"
 
 EXPENSES = [
     "Supermercado",
@@ -61,7 +61,7 @@ def seed(engine: Engine) -> None:
             kinds = ["cuenta_corriente"] + (["cuenta_ahorro"] if rnd.random() < 0.5 else [])
             for kind in kinds:
                 number = f"{rnd.randint(10**9, 10**10 - 1)}"
-                balance = Decimal(rnd.randint(200_000, 3_000_000))
+                balance = Decimal(rnd.randint(200_000, 3_000_000)) / 100  # S/ 2,000-30,000
                 account_id = conn.execute(
                     insert(accounts).values(
                         cliente_id=cid,
@@ -76,8 +76,13 @@ def seed(engine: Engine) -> None:
                 for day in range(DAYS):
                     for _ in range(rnd.randint(0, 2 if kind == "cuenta_corriente" else 1)):
                         income = rnd.random() < 0.2
-                        amount = Decimal(
-                            rnd.randint(5_000, 400_000) if income else -rnd.randint(1_000, 80_000)
+                        amount = (
+                            Decimal(
+                                rnd.randint(5_000, 400_000)
+                                if income
+                                else -rnd.randint(1_000, 80_000)
+                            )
+                            / 100
                         )
                         if balance + amount < 0:  # synthetic accounts never overdraw
                             continue

@@ -11,7 +11,7 @@ Agente conversacional para un banco ficticio, **Banco Andino Demo**, construido 
 | Qué es | Un agente que atiende consultas de clientes bancarios y ejecuta operaciones de bajo riesgo con aprobación explícita. |
 | Qué demuestra | Diseño de agentes de IA seguros y operables: mínimo privilegio, identidad delegada, pruebas en 6 capas, observabilidad de punta a punta. |
 | Stack | Python, Microsoft Agent Framework 1.24, Microsoft Foundry (gpt-5-mini, Foundry IQ), MCP, A2A, Azure Container Apps, Azure SQL, Entra External ID, Terraform. |
-| Estado | Fase 0 (documentación y diseño). Ver [Hoja de ruta](#hoja-de-ruta). |
+| Estado | Fase 2: agente Operaciones en la CLI con aprobación humana sobre el MCP en Azure. Ver [Hoja de ruta](#hoja-de-ruta). |
 
 ## Qué hace
 
@@ -175,7 +175,7 @@ banking-agent-maf-foundry/
 |------|----------|--------|
 | 0 | Documentación y estructura | En curso |
 | 1 | Core bancario simulado + servidor MCP | En curso |
-| 2 | Agente MAF mínimo | Pendiente |
+| 2 | Agente MAF mínimo | Hecha (escenarios con una ejecución; umbral 4/5 en la fase 4) |
 | 3 | Base de conocimiento | Pendiente |
 | 4 | Orquestación | Pendiente |
 | 5 | Identidad Entra | Pendiente |
@@ -199,6 +199,19 @@ uv run ruff check . && uv run ruff format --check . && uv run pytest
 ```
 
 Para probar con MCP Inspector y ver qué hace cada archivo: [docs/guides/fase-1-mcp.md](docs/guides/fase-1-mcp.md).
+
+Fase 2 (agente Operaciones en la CLI, con gpt-5-mini en Foundry y el MCP en Azure). Requiere `az login` con el rol Foundry User y la infraestructura de la [fase 1.5](docs/guides/fase-1-5-azure.md).
+
+```bash
+export FOUNDRY_PROJECT_ENDPOINT=$(terraform -chdir=infra output -raw foundry_project_endpoint)
+export MCP_URL=$(terraform -chdir=infra output -raw mcp_url)
+export DEV_CUSTOMER_ID=1
+uv run python -m agent_host                                  # chat; las escrituras piden "¿Apruebas? (s/n)"
+uv run python -m agent_host --ask "¿Cuál es mi saldo?"       # una pregunta, sin interacción
+uv run pytest -m azure -v                                    # escenarios con el modelo real
+```
+
+Cómo funciona el agente, las aprobaciones y una transcripción real: [docs/guides/fase-2-agente.md](docs/guides/fase-2-agente.md).
 
 ## Costos
 

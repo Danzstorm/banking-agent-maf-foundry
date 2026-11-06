@@ -1,11 +1,18 @@
+import os
+import socket
+import subprocess
+import sys
+import time
 from datetime import datetime
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from sqlalchemy import insert
 
 from mcp_server.db import accounts, cards, claims, customers, make_engine, transactions
 
+ROOT = Path(__file__).resolve().parents[1]
 A, B = 1, 2  # customer ids
 CARD_A, CARD_B = 1, 2
 CLAIM_A, CLAIM_B = 1, 2
@@ -32,7 +39,7 @@ def load_fixture(engine):
                     numero=f"000{cid}",
                     tipo="cuenta_corriente",
                     saldo=Decimal("1000.50") * cid,
-                    moneda="CLP",
+                    moneda="PEN",
                 )
             )
             conn.execute(
@@ -68,4 +75,34 @@ def engine(tmp_path):
     engine = make_engine(f"sqlite:///{tmp_path / 'test.db'}")
     load_fixture(engine)
     yield engine
+    engine.dispose()
+
+
+def _free_port() -> int:
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+@pytest.fixture(scope="module")
+def server(tmp_path_factory):
+    db_url = f"sqlite:///{tmp_path_factory.mktemp('contract') / 'contract.db'}"
+    engine = make_engine(db_url)
+    load_fixture(engine)
+    port = _free_port()
+    env = os.environ | {"DATABASE_URL": db_url, "AUTH_MODE": "dev", "MCP_PORT": str(port)}
+    proc = subprocess.Popen([sys.executable, "-m", "mcp_server"], cwd=ROOT, env=env)  # noqa: S603
+    deadline = time.monotonic() + 20
+    while True:
+        try:
+            socket.create_connection(("127.0.0.1", port), timeout=0.5).close()
+            break
+        except OSError:
+            if proc.poll() is not None or time.monotonic() > deadline:
+                proc.kill()
+                pytest.fail("MCP server did not start")
+            time.sleep(0.2)
+    yield f"http://127.0.0.1:{port}/mcp", engine
+    proc.terminate()
+    proc.wait(timeout=10)
     engine.dispose()

@@ -10,6 +10,10 @@ dependencies = [
     "pydantic>=2.7,<3",
     "faker>=30",
     "mssql-python>=1.17.0",
+    "agent-framework-core>=1.24.0",
+    "agent-framework-foundry>=1.16.0",
+    "azure-identity>=1.27.0",
+    "tenacity>=9.1.4,<9.2.0",
 ]
 
 [dependency-groups]
@@ -35,6 +39,9 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "SIM"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+# Azure scenarios hit real Foundry + MCP: opt in with `uv run pytest -m azure`.
+addopts = "-m 'not azure'"
 markers = [
     "contract: MCP contract tests over streamable HTTP (local, no Azure)",
+    "azure: scenario tests against real Foundry and the deployed MCP server",
 ]

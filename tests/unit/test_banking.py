@@ -28,7 +28,7 @@ def test_get_balance_returns_only_own_accounts_and_cards(engine):
                 "numero": "0001",
                 "tipo": "cuenta_corriente",
                 "saldo": "1000.50",
-                "moneda": "CLP",
+                "moneda": "PEN",
                 "tarjetas": [{"card_id": CARD_A, "ultimos4": "1111", "estado": "activa"}],
             }
         ]

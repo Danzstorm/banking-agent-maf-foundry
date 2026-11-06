@@ -8,7 +8,7 @@ El proyecto avanza en 9 fases más una bonus. Cada fase entrega algo que funcion
 |------|----------|----------------|--------|
 | [0](#fase-0-documentación-y-estructura) | Documentación y estructura | No | En curso |
 | [1](#fase-1-core-bancario-simulado-y-servidor-mcp) | Core bancario simulado + servidor MCP | No | En curso |
-| [2](#fase-2-agente-maf-mínimo) | Agente MAF mínimo | Sí (Foundry mínimo) | Pendiente |
+| [2](#fase-2-agente-maf-mínimo) | Agente MAF mínimo | Sí (Foundry mínimo) | Hecha |
 | [3](#fase-3-base-de-conocimiento) | Base de conocimiento | Sí | Pendiente |
 | [4](#fase-4-orquestación) | Orquestación | Sí | Pendiente |
 | [5](#fase-5-identidad-entra) | Identidad Entra | Sí | Pendiente |
@@ -84,10 +84,12 @@ Guía: [fase-1-mcp.md](guides/fase-1-mcp.md).
 
 **Criterios de aceptación.**
 
-- [ ] "¿Cuál es mi saldo?" devuelve el saldo del cliente de desarrollo.
-- [ ] `block_card` pide aprobación y solo se ejecuta al aprobar.
-- [ ] Rechazar la aprobación no ejecuta la herramienta.
-- [ ] La autenticación a Foundry usa credenciales Entra, sin API keys.
+- [x] "¿Cuál es mi saldo?" devuelve el saldo del cliente de desarrollo (escenario `azure`, una ejecución).
+- [x] `block_card` pide aprobación y solo se ejecuta al aprobar (escenario `azure` y prueba local determinista con modelo guionado).
+- [x] Rechazar la aprobación no ejecuta la herramienta (sin fila en `auditoria` en la prueba local; tarjeta sigue activa en Azure).
+- [x] La autenticación a Foundry usa credenciales Entra, sin API keys (`DefaultAzureCredential`; la cuenta tiene la autenticación local deshabilitada).
+
+Guía: [fase-2-agente.md](guides/fase-2-agente.md). La estabilidad con N ejecuciones (umbral 4/5) se mide en la fase 4.
 
 **Qué enseña.** Bucle de agente en MAF, cliente MCP, aprobaciones humanas.
 
