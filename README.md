@@ -11,16 +11,16 @@ Agente conversacional para un banco ficticio, **Banco Andino Demo**, construido 
 | Qué es | Un agente que atiende consultas de clientes bancarios y ejecuta operaciones de bajo riesgo con aprobación explícita. |
 | Qué demuestra | Diseño de agentes de IA seguros y operables: mínimo privilegio, identidad delegada, pruebas en 6 capas, observabilidad de punta a punta. |
 | Stack | Python, Microsoft Agent Framework 1.24, Microsoft Foundry (gpt-5-mini, Foundry IQ), MCP, A2A, Azure Container Apps, Azure SQL, Entra External ID, Terraform. |
-| Estado | Fase 2: agente Operaciones en la CLI con aprobación humana sobre el MCP en Azure. Ver [Hoja de ruta](#hoja-de-ruta). |
+| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. La arquitectura objetivo (RAG, multiagente, Entra, A2A) está diseñada y documentada. Ver [Versiones](#hoja-de-ruta). |
 
 ## Qué hace
 
 | Capacidad | Ejemplo | Cómo lo resuelve |
 |-----------|---------|------------------|
-| Responde sobre productos con citas | "¿Cuál es la comisión de mantención de la cuenta corriente?" | Base de conocimiento en Foundry IQ; cada respuesta cita su fuente. |
-| Consulta datos del cliente | "¿Cuál es mi saldo?", "¿En qué va mi reclamo?" | Herramientas MCP sobre el core bancario simulado. |
-| Ejecuta operaciones de bajo riesgo | "Bloquea mi tarjeta" | `block_card` y `open_claim`, solo con aprobación humana explícita. |
-| Escala a una persona | Fraude, fallecimiento del titular, reclamos legales, o falta de fuente confiable | Herramienta `escalate_to_human` que crea un ticket. |
+| Responde sobre productos con citas *(arquitectura objetivo)* | "¿Cuál es la comisión de mantención de la cuenta corriente?" | Base de conocimiento en Foundry IQ; cada respuesta cita su fuente. |
+| Consulta datos del cliente *(v1)* | "¿Cuál es mi saldo?", "¿En qué va mi reclamo?" | Herramientas MCP sobre el core bancario simulado. |
+| Ejecuta operaciones de bajo riesgo *(v1)* | "Bloquea mi tarjeta" | `block_card` y `open_claim`, solo con aprobación humana explícita. |
+| Escala a una persona *(arquitectura objetivo)* | Fraude, fallecimiento del titular, reclamos legales, o falta de fuente confiable | Herramienta `escalate_to_human` que crea un ticket. |
 
 ## Arquitectura en un vistazo
 
@@ -40,7 +40,7 @@ flowchart LR
     productos -.-> ai
 ```
 
-Detalle completo en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+El diagrama muestra la arquitectura objetivo. La v1 implementa el agente Operaciones (MAF + Foundry), el servidor MCP y Azure SQL en Azure Container Apps. Detalle completo en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## MAF y Foundry: quién hace qué
 
@@ -171,19 +171,21 @@ banking-agent-maf-foundry/
 
 ## Hoja de ruta
 
+La **v1** (fases 0 a 2) está completa y desplegada. Las fases 3 a 8 son extensiones con diseño, decisiones y criterios de aceptación ya definidos en [docs/PLAN.md](docs/PLAN.md).
+
 | Fase | Objetivo | Estado |
 |------|----------|--------|
 | 0 | Documentación y estructura | Hecha |
 | 1 | Core bancario simulado + servidor MCP | Hecha |
 | 1.5 | Infra base en Azure (Terraform) y MCP desplegado en Container Apps | Hecha |
-| 2 | Agente MAF mínimo | Hecha (escenarios con una ejecución; umbral 4/5 en la fase 4) |
-| 3 | Base de conocimiento | Pendiente |
-| 4 | Orquestación | Pendiente |
-| 5 | Identidad Entra | Pendiente |
-| 6 | Producción | Pendiente |
-| 7 | A2A | Pendiente |
-| 8 | Evaluaciones y observabilidad completas | Pendiente |
-| Bonus | Hosted agents, RAG manual, UI web, doble OBO | Pendiente |
+| 2 | Agente MAF con aprobación humana | Hecha (v1) |
+| 3 | Base de conocimiento | Diseñada |
+| 4 | Orquestación | Diseñada |
+| 5 | Identidad Entra | Diseñada |
+| 6 | Producción | Diseñada |
+| 7 | A2A | Diseñada |
+| 8 | Evaluaciones y observabilidad completas | Diseñada |
+| Bonus | Hosted agents, RAG manual, UI web, doble OBO | Diseñada |
 
 Detalle y criterios de aceptación en [docs/PLAN.md](docs/PLAN.md).
 
