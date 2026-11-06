@@ -52,3 +52,28 @@ output "mcp_server_identity_client_id" {
 output "agent_host_identity_client_id" {
   value = azurerm_user_assigned_identity.agent_host.client_id
 }
+
+output "search_endpoint" {
+  value = "https://${azurerm_search_service.main.name}.search.windows.net"
+}
+
+output "storage_account_name" {
+  value = azurerm_storage_account.knowledge.name
+}
+
+output "storage_account_id" {
+  value = azurerm_storage_account.knowledge.id
+}
+
+output "knowledge_container" {
+  value = azurerm_storage_container.knowledge.name
+}
+
+output "embedding_deployment_name" {
+  value = azurerm_cognitive_deployment.embedding.name
+}
+
+output "foundry_openai_endpoint" {
+  description = "Azure OpenAI-style endpoint of the Foundry account, used by the knowledge source embedding model."
+  value       = "https://${azurerm_cognitive_account.foundry.custom_subdomain_name}.openai.azure.com"
+}

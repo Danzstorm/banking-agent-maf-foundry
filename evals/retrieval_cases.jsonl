@@ -1,0 +1,10 @@
+{"question": "¿Cuál es la TEA para compras de la Tarjeta de Crédito Clásica?", "expected": ["tarjeta-credito-clasica"]}
+{"question": "¿Cuántos accesos a salas VIP incluye la Tarjeta Oro?", "expected": ["tarjeta-credito-oro"]}
+{"question": "¿Cuál es el ingreso mínimo para pedir la Tarjeta Oro?", "expected": ["tarjeta-credito-oro"]}
+{"question": "¿Qué tasa de interés paga la cuenta de ahorros si tengo más de S/ 1,000?", "expected": ["cuenta-de-ahorros"]}
+{"question": "¿Cuánto cuesta el mantenimiento de la cuenta corriente y cómo lo exonero?", "expected": ["cuenta-corriente", "tarifario-comisiones"]}
+{"question": "¿Cuánto me cobran por retirar de un cajero de otro banco?", "expected": ["tarifario-comisiones"]}
+{"question": "¿En cuántos días responden un reclamo?", "expected": ["proceso-de-reclamos"]}
+{"question": "Perdí mi tarjeta, ¿cómo la bloqueo?", "expected": ["bloqueo-tarjetas-y-seguridad"]}
+{"question": "¿Cuál es el límite diario de compras por internet?", "expected": ["bloqueo-tarjetas-y-seguridad"]}
+{"question": "¿Cuándo vencen mis Puntos Andinos?", "expected": ["preguntas-frecuentes"]}

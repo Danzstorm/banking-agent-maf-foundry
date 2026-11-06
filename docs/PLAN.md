@@ -109,11 +109,11 @@ Guía: [fase-2-agente.md](guides/fase-2-agente.md). La estabilidad con N ejecuci
 
 **Criterios de aceptación.**
 
-- [ ] Cada respuesta de producto incluye al menos una cita válida.
-- [ ] Una pregunta sin fuente responde "no tengo esa información".
-- [ ] La misma pregunta 5 veces devuelve la misma cifra y la misma fuente.
-- [ ] Las evaluaciones de recuperación y de respuesta se reportan por separado.
-- [ ] Si agentic retrieval no está disponible en la región, se documenta y se usa el índice híbrido clásico.
+- [x] Cada respuesta de producto incluye al menos una cita válida (escenarios `-m azure`: 6 de 6 respuestas de producto con fuente válida).
+- [x] Una pregunta sin fuente responde "no tengo esa información".
+- [x] La misma pregunta 5 veces devuelve la misma cifra y la misma fuente.
+- [x] Las evaluaciones de recuperación y de respuesta se reportan por separado (`evals/run_retrieval.py` y `tests/scenarios/test_productos_azure.py`).
+- [x] Si agentic retrieval no está disponible en la región, se documenta y se usa el índice híbrido clásico (no aplicó: funciona en southcentralus sobre AI Search Free).
 
 **Qué enseña.** RAG gestionado: ingesta, chunking, embeddings, búsqueda híbrida, recuperación con fuente y su evaluación.
 

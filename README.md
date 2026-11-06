@@ -11,13 +11,13 @@ Agente conversacional para un banco ficticio, **Banco Andino Demo**, construido 
 | Qué es | Un agente que atiende consultas de clientes bancarios y ejecuta operaciones de bajo riesgo con aprobación explícita. |
 | Qué demuestra | Diseño de agentes de IA seguros y operables: mínimo privilegio, identidad delegada, pruebas en 6 capas, observabilidad de punta a punta. |
 | Stack | Python, Microsoft Agent Framework 1.24, Microsoft Foundry (gpt-5-mini, Foundry IQ), MCP, A2A, Azure Container Apps, Azure SQL, Entra External ID, Terraform. |
-| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. La arquitectura objetivo (RAG, multiagente, Entra, A2A) está diseñada y documentada. Ver [Versiones](#hoja-de-ruta). |
+| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. **Fase 3 hecha**: agente Productos local que responde con citas desde una base de conocimiento de Foundry IQ. La arquitectura objetivo (multiagente, Entra, A2A) está diseñada y documentada. Ver [Versiones](#hoja-de-ruta). |
 
 ## Qué hace
 
 | Capacidad | Ejemplo | Cómo lo resuelve |
 |-----------|---------|------------------|
-| Responde sobre productos con citas *(arquitectura objetivo)* | "¿Cuál es la comisión de mantención de la cuenta corriente?" | Base de conocimiento en Foundry IQ; cada respuesta cita su fuente. |
+| Responde sobre productos con citas *(v1)* | "¿Cuál es la comisión de mantenimiento de la cuenta corriente?" | Base de conocimiento en Foundry IQ; cada respuesta cita su fuente. |
 | Consulta datos del cliente *(v1)* | "¿Cuál es mi saldo?", "¿En qué va mi reclamo?" | Herramientas MCP sobre el core bancario simulado. |
 | Ejecuta operaciones de bajo riesgo *(v1)* | "Bloquea mi tarjeta" | `block_card` y `open_claim`, solo con aprobación humana explícita. |
 | Escala a una persona *(arquitectura objetivo)* | Fraude, fallecimiento del titular, reclamos legales, o falta de fuente confiable | Herramienta `escalate_to_human` que crea un ticket. |
@@ -142,7 +142,8 @@ Verificado el 2026-11-06.
 | Hosting de agentes en Foundry | Beta | Solo fase bonus |
 | Foundry IQ knowledge base (recuperación extractiva) | GA (abril 2026) | Núcleo |
 | Foundry IQ answer synthesis | Preview | No se usa: la síntesis la hace el agente |
-| Agentic retrieval en AI Search Free | Disponible en regiones seleccionadas | Núcleo, con fallback a índice híbrido clásico |
+| Agentic retrieval en AI Search Free | Disponible en regiones seleccionadas | Núcleo; funciona en southcentralus (fallback híbrido no fue necesario) |
+| Endpoint MCP de la knowledge base | Preview (`2026-08-01-preview`) | Núcleo: herramienta `knowledge_base_retrieve` del agente Productos |
 | `azure-ai-evaluation` 1.18 | Estable | Evaluaciones |
 | Evaluadores `tool_call_accuracy`, `groundedness` | GA | Evaluaciones |
 | Evaluadores `intent_resolution`, `task_adherence` | Preview | Evaluaciones |
@@ -171,7 +172,7 @@ banking-agent-maf-foundry/
 
 ## Hoja de ruta
 
-La **v1** (fases 0 a 2) está completa y desplegada. Las fases 3 a 8 son extensiones con diseño, decisiones y criterios de aceptación ya definidos en [docs/PLAN.md](docs/PLAN.md).
+La **v1** (fases 0 a 2) está completa y desplegada, y la fase 3 también. Las fases 4 a 8 son extensiones con diseño, decisiones y criterios de aceptación ya definidos en [docs/PLAN.md](docs/PLAN.md).
 
 | Fase | Objetivo | Estado |
 |------|----------|--------|
@@ -179,7 +180,7 @@ La **v1** (fases 0 a 2) está completa y desplegada. Las fases 3 a 8 son extensi
 | 1 | Core bancario simulado + servidor MCP | Hecha |
 | 1.5 | Infra base en Azure (Terraform) y MCP desplegado en Container Apps | Hecha |
 | 2 | Agente MAF con aprobación humana | Hecha (v1) |
-| 3 | Base de conocimiento | Diseñada |
+| 3 | Base de conocimiento | Hecha |
 | 4 | Orquestación | Diseñada |
 | 5 | Identidad Entra | Diseñada |
 | 6 | Producción | Diseñada |
@@ -216,13 +217,26 @@ uv run pytest -m azure -v                                    # escenarios con el
 
 Cómo funciona el agente, las aprobaciones y una transcripción real: [docs/guides/fase-2-agente.md](docs/guides/fase-2-agente.md).
 
+Fase 3 (agente Productos con Foundry IQ). Requiere los recursos de conocimiento de [infra/README.md](infra/README.md) y haber corrido la ingesta.
+
+```bash
+export FOUNDRY_PROJECT_ENDPOINT=$(terraform -chdir=infra output -raw foundry_project_endpoint)
+export SEARCH_ENDPOINT=$(terraform -chdir=infra output -raw search_endpoint)
+uv run python -m agent_host --agent productos --ask "¿Cuánto cuesta la membresía de la Tarjeta Oro?"
+uv run python evals/run_retrieval.py                         # evaluación de recuperación
+```
+
+Ingesta, qué hace Foundry IQ por dentro y una transcripción real: [docs/guides/fase-3-knowledge.md](docs/guides/fase-3-knowledge.md).
+
 ## Costos
 
 Diseñado para costar casi cero en reposo.
 
 | Recurso | Costo en reposo |
 |---------|-----------------|
-| Azure AI Search | Free tier |
+| Azure AI Search | Free tier (semantic ranker y agentic retrieval en plan free) |
+| Storage account (PDF de productos) | Centavos al mes por < 1 MB |
+| text-embedding-3-small | Por uso; la ingesta de 8 documentos cuesta menos de un centavo |
 | Azure SQL Database | Free offer (100 000 vCore-s/mes, 32 GB, se pausa al llegar al límite: no factura) |
 | Azure Container Apps | Scale-to-zero; grant gratuito de 180 000 vCPU-s/mes |
 | gpt-5-mini | Por uso: aprox. USD 0,25 entrada / 2,00 salida por 1M tokens (fuente de terceros; verifica en la página oficial de precios) |

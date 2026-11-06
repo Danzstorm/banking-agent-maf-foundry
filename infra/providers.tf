@@ -1,5 +1,7 @@
 provider "azurerm" {
   subscription_id = var.subscription_id
+  # Storage data-plane calls use Entra ID: the knowledge storage account disables shared keys.
+  storage_use_azuread = true
 
   features {
     cognitive_account {

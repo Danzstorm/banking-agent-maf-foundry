@@ -44,3 +44,37 @@ def load_settings(env: dict[str, str] | None = None) -> Settings:
         mcp_url=_https_url("MCP_URL", env["MCP_URL"], allow_http_localhost=True),
         dev_customer_id=int(raw_customer),
     )
+
+
+@dataclass(frozen=True)
+class ProductosSettings:
+    project_endpoint: str
+    model_deployment: str
+    search_endpoint: str
+    knowledge_base: str
+
+    @property
+    def kb_mcp_url(self) -> str:
+        """Foundry IQ knowledge base MCP endpoint (preview API, tool knowledge_base_retrieve)."""
+        base = self.search_endpoint.rstrip("/")
+        return f"{base}/knowledgebases/{self.knowledge_base}/mcp?api-version=2026-08-01-preview"
+
+
+def load_productos_settings(env: dict[str, str] | None = None) -> ProductosSettings:
+    env = os.environ if env is None else env
+    missing = [
+        name
+        for name in ("FOUNDRY_PROJECT_ENDPOINT", "SEARCH_ENDPOINT")
+        if not env.get(name, "").strip()
+    ]
+    if missing:
+        raise ConfigError(f"Faltan variables de entorno: {', '.join(missing)}.")
+    knowledge_base = env.get("KNOWLEDGE_BASE", "").strip() or "kb-productos"
+    if not knowledge_base.replace("-", "").isalnum():
+        raise ConfigError("KNOWLEDGE_BASE solo admite letras, números y guiones.")
+    return ProductosSettings(
+        project_endpoint=_https_url("FOUNDRY_PROJECT_ENDPOINT", env["FOUNDRY_PROJECT_ENDPOINT"]),
+        model_deployment=env.get("FOUNDRY_MODEL_DEPLOYMENT", "").strip() or "gpt-5-mini",
+        search_endpoint=_https_url("SEARCH_ENDPOINT", env["SEARCH_ENDPOINT"]),
+        knowledge_base=knowledge_base,
+    )

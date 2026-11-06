@@ -33,6 +33,9 @@ South Central US es la única de las cuatro que cumple todo. Fuente de AI Search
 | Identidad `id-agent-host` | El agente host (fase 2) la usa para Foundry | 0 |
 | Container Registry Basic | Imágenes propias, sin usuario admin | ~USD 5/mes (~0,17/día) |
 | Container Apps environment + `mcp-server` | Servidor MCP; 0 a 1 réplicas | 0 con 0 réplicas |
+| Storage account `stbankingagent<sufijo>` + contenedor `productos` (fase 3) | PDF de productos para Foundry IQ. Solo Entra (`shared_access_key_enabled = false`) | Centavos al mes |
+| AI Search Free `srch-banking-agent-<sufijo>` (fase 3) | Knowledge source y knowledge base de Foundry IQ. Solo Entra (`local_authentication_enabled = false`), identidad del sistema, semantic ranker en plan free | 0 |
+| Deployment `text-embedding-3-small` (GlobalStandard, 50K TPM, fase 3) | Embeddings de los fragmentos y de las consultas | 0 (pago por token) |
 | Presupuesto USD 20/mes | Alertas al 50 % y 100 % real, y 100 % pronosticado | 0 |
 
 **Costo en reposo estimado: ~USD 0,17 al día**, casi todo de ACR. El resto cobra solo por uso (tokens, segundos de contenedor, GB de logs). Aun así, ejecuta `terraform destroy` al terminar cada sesión (ADR-021).
@@ -41,6 +44,7 @@ Roles asignados:
 
 - `Foundry User` (antes "Azure AI User") sobre la cuenta Foundry para `id-agent-host` y para ti (desarrollo local). Cubre Responses API, tracing y evaluaciones. Si solo necesitas inferencia, `Foundry Project Runtime User` es más restrictivo.
 - `AcrPull` sobre el ACR para `id-mcp-server`.
+- Fase 3: la identidad de AI Search tiene `Storage Blob Data Reader` sobre el storage (el indexer lee los PDF) y `Cognitive Services User` sobre Foundry (embeddings). Tú tienes `Storage Blob Data Contributor`, `Search Service Contributor` y `Search Index Data Contributor` (subir PDF, crear la knowledge base y consultarla). `id-agent-host` tiene `Search Index Data Reader`.
 - Tú quedas como administrador Entra del servidor SQL.
 
 ## Riesgo abierto: `AUTH_MODE=dev`
@@ -117,4 +121,12 @@ y vuelve a ejecutar `plan` y `apply`. El contenedor descarga la imagen con `id-m
 ## Pendiente para fases siguientes
 
 - Conectar Application Insights al proyecto Foundry (tracing): se hace desde el portal de Foundry o con una conexión `azapi` en la fase de observabilidad.
-- AI Search Free y Storage (fase 3), Key Vault y app registrations de External ID (fase 5), y las apps `agent-host` y `productos-a2a`.
+- Key Vault y app registrations de External ID (fase 5), y las apps `agent-host` y `productos-a2a`.
+
+## Notas de la fase 3
+
+- **Managed identity en Free.** La documentación de AI Search pide Basic o superior para managed identity, pero la API la acepta en Free y la ingesta funciona con ella (verificado el 2026-11-06). Sin ella no habría cómo llegar a Foundry, que tiene la autenticación por clave deshabilitada.
+- **Semantic ranker.** La knowledge base falla con "requires Semantic Search" si el semantic ranker está apagado. `azurerm` rechaza `semantic_search_sku` con `sku = "free"`, aunque la API lo acepta; por eso lo activa `azapi_update_resource.search_semantic`.
+- **`knowledgeRetrieval`.** Queda en `free` (el valor por defecto): `standard` exige Basic o superior. El plan free da una cuota mensual de tokens; al agotarse, las consultas devuelven un error de pago requerido.
+- **`storage_use_azuread = true`** en el provider: sin él, `azurerm` intenta leer el storage con clave compartida y falla con 403.
+- La knowledge source y la knowledge base son objetos de data plane: los crea `knowledge/ingest.py`, no Terraform (ADR-012). `terraform destroy` las elimina junto con el servicio.
