@@ -1,0 +1,120 @@
+# Infraestructura (Fase 1.5: walking skeleton)
+
+Terraform que crea la base mínima en Azure para que el servidor MCP corra en Container Apps contra Azure SQL, con Foundry y gpt-5-mini listos para la fase 2. Todo queda en el resource group `rg-banking-agent-dev`, con los tags `project=banking-agent` y `env=dev`.
+
+## Región: South Central US
+
+Todo se despliega en `southcentralus`, una sola región. Verificado el 2026-11-06 sobre esta suscripción:
+
+| Requisito | eastus2 | eastus | centralus | southcentralus |
+|-----------|---------|--------|-----------|----------------|
+| gpt-5-mini GlobalStandard (`az cognitiveservices model list`) | Sí | Sí | Sí | Sí |
+| Cuota gpt-5-mini GlobalStandard (`az cognitiveservices usage list`) | 0/1000 | 0/1000 | 0/1000 | 0/1000 |
+| Azure SQL (API `locations/{r}/capabilities`) | Restringida | Restringida | Disponible | Disponible |
+| AI Search: crear servicios nuevos | No (alta demanda) | Sí | Sí | Sí |
+| AI Search Free con agentic retrieval (fase 3) | Sí, pero no se puede crear | Sí | No | Sí |
+| Container Apps y Foundry projects | Sí | Sí | Sí | Sí |
+
+South Central US es la única de las cuatro que cumple todo. Fuente de AI Search: [Supported regions](https://learn.microsoft.com/azure/search/search-region-support).
+
+> El free offer de Azure SQL fija su región con la primera base gratuita de la suscripción. Si ya tienes una base free en otra región, la creación puede fallar: usa esa región en `location` o elimina la otra base.
+
+## Recursos
+
+| Recurso | Para qué | Costo en reposo |
+|---------|----------|-----------------|
+| Resource group | Contenedor de todo | 0 |
+| Log Analytics + Application Insights | Logs de Container Apps y trazas OTel (cuota diaria de 1 GB) | ~0 (pago por GB ingerido) |
+| Foundry account (AIServices) + project | Plataforma del modelo, tracing y evaluaciones. Solo Entra ID (`local_auth_enabled = false`) | 0 |
+| Deployment `gpt-5-mini` (GlobalStandard, 50K TPM) | Modelo del agente | 0 (pago por token) |
+| RAI policy `banking-agent-guardrails` | DefaultV2 + jailbreak e indirect attack en modo bloqueo (ADR-017) | 0 |
+| Azure SQL server + `sqldb-banking` | Core bancario. Solo Entra; free offer con AutoPause (ADR-011) | 0 |
+| Identidad `id-mcp-server` | El contenedor MCP la usa para ACR y SQL | 0 |
+| Identidad `id-agent-host` | El agente host (fase 2) la usa para Foundry | 0 |
+| Container Registry Basic | Imágenes propias, sin usuario admin | ~USD 5/mes (~0,17/día) |
+| Container Apps environment + `mcp-server` | Servidor MCP; 0 a 1 réplicas | 0 con 0 réplicas |
+| Presupuesto USD 20/mes | Alertas al 50 % y 100 % real, y 100 % pronosticado | 0 |
+
+**Costo en reposo estimado: ~USD 0,17 al día**, casi todo de ACR. El resto cobra solo por uso (tokens, segundos de contenedor, GB de logs). Aun así, ejecuta `terraform destroy` al terminar cada sesión (ADR-021).
+
+Roles asignados:
+
+- `Foundry User` (antes "Azure AI User") sobre la cuenta Foundry para `id-agent-host` y para ti (desarrollo local). Cubre Responses API, tracing y evaluaciones. Si solo necesitas inferencia, `Foundry Project Runtime User` es más restrictivo.
+- `AcrPull` sobre el ACR para `id-mcp-server`.
+- Tú quedas como administrador Entra del servidor SQL.
+
+## Riesgo abierto: `AUTH_MODE=dev`
+
+En modo dev el servidor MCP confía en el header `X-Dev-Customer-Id`. Para que nadie más pueda usarlo, el ingress solo acepta tu IP (`client_ip`). La validación JWT llega en la fase 5. Si tu IP cambia, actualiza `client_ip` y vuelve a aplicar.
+
+## Uso
+
+Requisitos: Terraform >= 1.9 y Azure CLI con sesión iniciada (`az login`) en la suscripción correcta.
+
+```bash
+cd infra
+cp terraform.tfvars.example dev.tfvars   # dev.tfvars está en .gitignore
+# Completa subscription_id, alert_email y client_ip (curl -s https://api.ipify.org)
+
+terraform init
+terraform plan -var-file=dev.tfvars -out=tfplan
+terraform apply tfplan
+
+# Al terminar la sesión
+terraform destroy -var-file=dev.tfvars
+```
+
+El primer `apply` usa la imagen pública `mcr.microsoft.com/k8se/quickstart:latest` (escucha en el puerto 80) para que funcione antes de que exista nuestra imagen. Con la imagen propia el puerto pasa a 8000 automáticamente.
+
+## Pasos después del apply
+
+### 1. Crear el usuario de base de datos de la identidad
+
+Conéctate a `sqldb-banking` (no a `master`) con tu cuenta Entra y ejecuta [`sql/create-mcp-user.sql`](sql/create-mcp-user.sql). Puedes usar el editor de consultas del portal o `sqlcmd`:
+
+```bash
+sqlcmd -S "$(terraform output -raw sql_server_fqdn)" -d sqldb-banking --authentication-method ActiveDirectoryDefault -i sql/create-mcp-user.sql
+```
+
+### 2. Cargar los datos sintéticos
+
+Corre el seed desde tu máquina contra Azure SQL con tu identidad (eres el admin, así que también crea el esquema). La forma exacta de la URL depende de cómo el código Python termine de soportar `mssql-python`; el patrón esperado es:
+
+```bash
+export DATABASE_URL="mssql+mssqlpython://@$(terraform output -raw sql_server_fqdn):1433/sqldb-banking?Authentication=ActiveDirectoryDefault&Encrypt=yes"
+uv run python -m mcp_server.seed
+```
+
+La base se pausa tras 15 minutos sin uso; la primera conexión tarda unos segundos en despertarla.
+
+### 3. Publicar la imagen y actualizar el contenedor
+
+Cuando exista un `Dockerfile` en la raíz del repo:
+
+```bash
+ACR=$(terraform -chdir=infra output -raw acr_name)
+az acr build --registry "$ACR" --image mcp-server:v1 .
+```
+
+Luego, en `dev.tfvars`:
+
+```hcl
+mcp_image = "<acr_login_server>/mcp-server:v1"
+```
+
+y vuelve a ejecutar `plan` y `apply`. El contenedor descarga la imagen con `id-mcp-server`, sin contraseñas.
+
+## Variables de entorno del contenedor
+
+| Variable | Valor |
+|----------|-------|
+| `AUTH_MODE` | `dev` |
+| `MCP_HOST` | `0.0.0.0` (el servidor escucha en `127.0.0.1` por defecto) |
+| `DATABASE_URL` | URL de SQLAlchemy con `ActiveDirectoryMSI` y el client id de `id-mcp-server` |
+| `AZURE_CLIENT_ID` | Client id de `id-mcp-server` |
+| `APPLICATIONINSIGHTS_CONNECTION_STRING` | Desde un secret de Container Apps |
+
+## Pendiente para fases siguientes
+
+- Conectar Application Insights al proyecto Foundry (tracing): se hace desde el portal de Foundry o con una conexión `azapi` en la fase de observabilidad.
+- AI Search Free y Storage (fase 3), Key Vault y app registrations de External ID (fase 5), y las apps `agent-host` y `productos-a2a`.

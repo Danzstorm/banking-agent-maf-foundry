@@ -1,0 +1,63 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.python-version.local
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.key
+*.crt
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.tfstate.lock.info
+tfplan
+*.tfplan
+
+# Local databases
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Local eval and red team outputs
+evals/results/
+evals/output/
+redteam_output/
+.scan_*/
+*.eval.jsonl
+locust_report*.html
+
+# Generated knowledge artifacts
+knowledge/dist/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

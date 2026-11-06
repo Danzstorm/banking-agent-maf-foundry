@@ -1,0 +1,10 @@
+# Copy to dev.tfvars (gitignored) and fill in. Never commit the real file.
+subscription_id = "00000000-0000-0000-0000-000000000000" # az account show --query id -o tsv
+alert_email     = "you@example.com"
+client_ip       = "203.0.113.10" # curl -s https://api.ipify.org
+
+# Optional overrides
+# location       = "southcentralus"
+# budget_amount  = 20
+# model_capacity = 50
+# mcp_image      = "<acr_login_server>/mcp-server:<tag>"
