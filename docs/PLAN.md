@@ -131,10 +131,10 @@ Guía: [fase-2-agente.md](guides/fase-2-agente.md). La estabilidad con N ejecuci
 
 **Criterios de aceptación.**
 
-- [ ] Preguntas de producto llegan a Productos; consultas personales, a Operaciones.
-- [ ] Fraude, fallecimiento del titular y reclamos legales escalan siempre.
-- [ ] Productos no tiene herramientas MCP; Operaciones no tiene acceso al conocimiento.
-- [ ] Cada escenario pasa al menos 4 de 5 ejecuciones.
+- [x] Preguntas de producto llegan a Productos; consultas personales, a Operaciones.
+- [x] Fraude, fallecimiento del titular y reclamos legales escalan siempre.
+- [x] Productos no tiene herramientas MCP bancarias (solo `escalate_to_human`, filtrada con `allowed_tools`); Operaciones no tiene acceso al conocimiento.
+- [x] Cada escenario pasa al menos 4 de 5 ejecuciones (8 escenarios, todos 5/5 el 2026-11-06).
 
 **Qué enseña.** Orquestación multiagente, mínimo privilegio, pruebas de trayectoria sobre modelos no deterministas.
 

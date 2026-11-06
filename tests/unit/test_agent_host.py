@@ -9,7 +9,7 @@ from agent_host.agent import (
     build_mcp_tool,
     mcp_headers,
 )
-from agent_host.cli import describe_request, parse_answer
+from agent_host.cli import describe_request, format_reply, parse_answer
 from agent_host.config import ConfigError, Settings, load_settings
 
 ENV = {
@@ -54,12 +54,12 @@ def test_headers_without_host_context_fail_closed():
         mcp_headers({"customer_id": 2})
 
 
-def test_writes_require_approval_by_default():
+def test_writes_require_approval_by_default_but_escalation_does_not():
     tool = build_mcp_tool(Settings("https://f.example", "m", "https://mcp.example/mcp", 1))
     assert tool.approval_mode == {
         "default": "always_require",
         "always_require_approval": WRITE_TOOLS,
-        "never_require_approval": READ_TOOLS,
+        "never_require_approval": [*READ_TOOLS, "escalate_to_human"],
     }
 
 
@@ -74,3 +74,9 @@ def test_approval_prompt_in_spanish():
 )
 def test_parse_answer(answer, approved):
     assert parse_answer(answer) is approved
+
+
+def test_productos_json_reply_is_shown_with_sources():
+    reply = '{"answer": "Cuesta S/ 10.", "sources": ["Tarifario"]}'
+    assert format_reply("productos", reply) == "[Productos] Cuesta S/ 10.\nFuentes: Tarifario"
+    assert format_reply("triage", "Hola") == "[Triage] Hola"

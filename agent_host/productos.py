@@ -88,15 +88,21 @@ def build_productos_agent(
     settings: ProductosSettings,
     search_credential: Any,
     *,
+    extra_tools: Sequence[Any] = (),
     middleware: Sequence[Any] | None = None,
 ) -> Agent:
+    """`extra_tools`: only `escalate_to_human` in the triage workflow; never banking tools."""
     return Agent(
         client=client,
         name="productos",
+        description="Responde sobre productos, tarifas, requisitos y procesos del banco.",
         instructions=INSTRUCTIONS,
-        tools=build_kb_tool(settings, search_credential),
-        default_options={"reasoning": {"effort": "low"}},  # ADR-002, ADR-018
+        tools=[build_kb_tool(settings, search_credential), *extra_tools],
+        # ADR-002, ADR-018. response_format here too so it holds inside the handoff workflow,
+        # where the caller can't pass per-run options.
+        default_options={"reasoning": {"effort": "low"}, "response_format": ProductAnswer},
         middleware=middleware,
+        require_per_service_call_history_persistence=True,  # required by HandoffBuilder
     )
 
 

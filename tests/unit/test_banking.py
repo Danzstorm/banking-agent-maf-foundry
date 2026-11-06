@@ -5,7 +5,7 @@ from sqlalchemy import func, select
 
 from mcp_server import banking
 from mcp_server.banking import BankError
-from mcp_server.db import cards, claims
+from mcp_server.db import cards, claims, escalation_tickets
 from tests.conftest import CARD_A, CARD_B, CLAIM_A, CLAIM_B, A, B
 
 
@@ -110,3 +110,32 @@ def test_failed_write_is_not_cached(engine):
     for _ in range(2):  # the retry re-executes and fails again, no stored success
         with pytest.raises(BankError):
             banking.block_card(engine, A, "conv-1", CARD_B)
+
+
+def tickets(engine):
+    with engine.connect() as conn:
+        return conn.execute(
+            select(escalation_tickets.c.cliente_id, escalation_tickets.c.motivo)
+        ).all()
+
+
+def test_escalate_creates_one_ticket_per_conversation_and_category(engine):
+    first = banking.escalate_to_human(engine, A, "conv-1", "fraude", "Cargos que no reconozco")
+    again = banking.escalate_to_human(engine, A, "conv-1", "fraude", "Me robaron la tarjeta")
+    other = banking.escalate_to_human(engine, A, "conv-1", "legal", "Quiero demandar al banco")
+    assert again == first
+    assert other["ticket_id"] != first["ticket_id"]
+    assert first["categoria"] == "fraude"
+    assert tickets(engine) == [
+        (A, "[fraude] Cargos que no reconozco"),
+        (A, "[legal] Quiero demandar al banco"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("categoria", "motivo"), [("spam", "Motivo suficientemente largo"), ("otro", "corto")]
+)
+def test_escalate_validates_category_and_motivo(engine, categoria, motivo):
+    with pytest.raises(BankError):
+        banking.escalate_to_human(engine, A, "conv-1", categoria, motivo)
+    assert tickets(engine) == []

@@ -14,11 +14,20 @@ from typing import Any
 from sqlalchemy import Connection, Engine, insert, select, update
 from sqlalchemy.exc import IntegrityError
 
-from mcp_server.db import accounts, cards, claims, idempotency_keys, transactions
+from mcp_server.db import (
+    accounts,
+    cards,
+    claims,
+    escalation_tickets,
+    idempotency_keys,
+    transactions,
+)
 
 MAX_RANGE_DAYS = 90
 CLAIM_MIN_LEN = 10
 CLAIM_MAX_LEN = 500
+ESCALATION_CATEGORIES = ("fraude", "fallecimiento", "legal", "sin_fuente", "otro")
+ESCALATION_MAX_LEN = 480  # leaves room for the "[categoria] " prefix in a 500-char column
 
 
 class BankError(Exception):
@@ -192,3 +201,43 @@ def open_claim(engine: Engine, customer_id: int, conversation_id: str, motivo: s
 
     key = idempotency_key(conversation_id, customer_id, "open_claim", {"motivo": motivo.casefold()})
     return _run_once(engine, key, "open_claim", work)
+
+
+def escalate_to_human(
+    engine: Engine, customer_id: int, conversation_id: str, categoria: str, motivo: str
+) -> dict[str, Any]:
+    """Opens a ticket for a human advisor. One ticket per conversation and category."""
+    motivo = " ".join(motivo.split())
+    if categoria not in ESCALATION_CATEGORIES:
+        raise BankError(f"Categoría inválida. Usa una de: {', '.join(ESCALATION_CATEGORIES)}.")
+    if not CLAIM_MIN_LEN <= len(motivo) <= ESCALATION_MAX_LEN:
+        raise BankError(
+            f"El motivo debe tener entre {CLAIM_MIN_LEN} y {ESCALATION_MAX_LEN} caracteres."
+        )
+
+    def work(conn: Connection) -> dict[str, Any]:
+        created = _now()
+        ticket_id = conn.execute(
+            insert(escalation_tickets).values(
+                cliente_id=customer_id,
+                conversation_id=conversation_id,
+                # ponytail: category lives in the motivo text; add a column (and re-seed) if
+                # advisors need to filter tickets by category.
+                motivo=f"[{categoria}] {motivo}",
+                estado="abierto",
+                creado_en=created,
+            )
+        ).inserted_primary_key[0]
+        return {
+            "ticket_id": ticket_id,
+            "categoria": categoria,
+            "estado": "abierto",
+            "mensaje": f"Ticket {ticket_id} creado: un asesor de Banco Andino Demo te contactará.",
+        }
+
+    # Keyed on the category only: a retry, or a second agent escalating the same topic in the
+    # same conversation, returns the existing ticket instead of opening another.
+    key = idempotency_key(
+        conversation_id, customer_id, "escalate_to_human", {"categoria": categoria}
+    )
+    return _run_once(engine, key, "escalate_to_human", work)

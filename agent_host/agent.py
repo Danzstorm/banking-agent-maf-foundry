@@ -26,6 +26,8 @@ from agent_host.config import Settings
 
 READ_TOOLS = ["get_balance", "list_transactions", "get_claim_status"]
 WRITE_TOOLS = ["block_card", "open_claim"]
+# A request for help, not an operation on the customer's products: no approval (ADR-004).
+ESCALATE_TOOL = "escalate_to_human"
 
 # Keys of the host runtime context (function_invocation_kwargs). Not visible to the model.
 CUSTOMER_KEY = "dev_customer_id"
@@ -67,7 +69,10 @@ def mcp_headers(kwargs: Mapping[str, Any]) -> dict[str, str]:
     }
 
 
-def build_mcp_tool(settings: Settings) -> MCPStreamableHTTPTool:
+def build_mcp_tool(
+    settings: Settings, allowed_tools: Sequence[str] | None = None
+) -> MCPStreamableHTTPTool:
+    """MCP banking tools. `allowed_tools` narrows what the agent sees (least privilege)."""
     return MCPStreamableHTTPTool(
         name="banco_andino_core",
         url=settings.mcp_url,
@@ -77,8 +82,9 @@ def build_mcp_tool(settings: Settings) -> MCPStreamableHTTPTool:
         approval_mode={
             "default": "always_require",
             "always_require_approval": WRITE_TOOLS,
-            "never_require_approval": READ_TOOLS,
+            "never_require_approval": [*READ_TOOLS, ESCALATE_TOOL],
         },
+        allowed_tools=allowed_tools,
         load_prompts=False,
         request_timeout=30,
     )
@@ -93,11 +99,14 @@ def build_agent(
     return Agent(
         client=client,
         name="operaciones",
+        description="Consulta y opera sobre las cuentas, tarjetas y reclamos del cliente.",
         instructions=INSTRUCTIONS.format(today=date.today().isoformat()),
         tools=build_mcp_tool(settings),
         # gpt-5-mini is a reasoning model: no temperature; pin the effort (ADR-002, ADR-018).
         default_options={"reasoning": {"effort": "low"}},
         middleware=middleware,
+        # Required by HandoffBuilder: handoff tool calls are short-circuited by middleware.
+        require_per_service_call_history_persistence=True,
     )
 
 

@@ -7,7 +7,7 @@ is written to `auditoria` by `audit_middleware`, including rejected ones.
 import json
 import re
 from datetime import UTC, date, datetime
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import anyio
 from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
@@ -173,5 +173,34 @@ def build_server(engine: Engine) -> MCPServer:
         ctx: Context,
     ) -> dict:
         return bank_call(banking.open_claim, customer_id(ctx), conversation_id(ctx), motivo)
+
+    @server.tool(
+        description=(
+            "Deriva el caso del cliente autenticado a un asesor humano y crea un ticket. Úsala "
+            "siempre ante fraude o cargos no reconocidos, fallecimiento del titular, reclamos "
+            "legales, o cuando no hay una fuente confiable para responder. No requiere "
+            "aprobación: es una solicitud de ayuda. Repetir la misma categoría en la misma "
+            "conversación devuelve el ticket existente. Requiere el header X-Conversation-Id."
+        ),
+        annotations=write,
+    )
+    def escalate_to_human(
+        categoria: Annotated[
+            Literal["fraude", "fallecimiento", "legal", "sin_fuente", "otro"],
+            Field(description="Tipo de caso."),
+        ],
+        motivo: Annotated[
+            str,
+            Field(
+                min_length=banking.CLAIM_MIN_LEN,
+                max_length=banking.ESCALATION_MAX_LEN,
+                description="Resumen breve del caso, en palabras del cliente.",
+            ),
+        ],
+        ctx: Context,
+    ) -> dict:
+        return bank_call(
+            banking.escalate_to_human, customer_id(ctx), conversation_id(ctx), categoria, motivo
+        )
 
     return server

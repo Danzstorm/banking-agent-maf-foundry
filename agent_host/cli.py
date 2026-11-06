@@ -1,12 +1,13 @@
-"""CLI for the Operaciones and Productos agents.
+"""CLI for Banco Andino Demo. Default: the triage workflow (Triage -> Productos | Operaciones).
 
-Interactive:   uv run python -m agent_host [--agent productos]
+Interactive:   uv run python -m agent_host [--agent triage|operaciones|productos]
 Scripted demo: uv run python -m agent_host --ask "¿Cuál es mi saldo?" [--auto-approve | --auto-deny]
                uv run python -m agent_host --agent productos --ask "¿Cuánto cuesta la Tarjeta Oro?"
 """
 
 import argparse
 import asyncio
+import contextlib
 import json
 import sys
 import warnings
@@ -16,11 +17,13 @@ from agent_framework import Content
 from agent_host.agent import build_agent, build_foundry_client, chat_turn, new_session
 from agent_host.config import ConfigError, load_productos_settings, load_settings
 from agent_host.productos import ProductAnswer, ask, build_productos_agent
+from agent_host.workflow import Conversation, build_triage_agent, build_workflow, escalate_only_tool
 
 TOOL_LABELS = {
     "block_card": "Bloquear tarjeta",
     "open_claim": "Abrir reclamo",
 }
+AGENT_LABELS = {"triage": "Triage", "productos": "Productos", "operaciones": "Operaciones"}
 
 
 def describe_request(req: Content) -> str:
@@ -53,6 +56,69 @@ def format_answer(answer: ProductAnswer) -> str:
     if not answer.sources:
         return answer.answer
     return f"{answer.answer}\nFuentes: {'; '.join(answer.sources)}"
+
+
+def format_reply(agent: str, text: str) -> str:
+    """Productos answers with ProductAnswer JSON; the other agents with plain text."""
+    if agent == "productos":
+        with contextlib.suppress(ValueError):
+            text = format_answer(ProductAnswer.model_validate_json(text))
+    return f"[{AGENT_LABELS.get(agent, agent)}] {text}"
+
+
+def _ignore_mcp_close_noise(loop: asyncio.AbstractEventLoop, context: dict) -> None:
+    # ponytail: the workflow opens MCP connections inside its own tasks, so closing them from
+    # the main task trips anyio's cancel-scope check at shutdown. The process is exiting and
+    # nothing is lost; drop only that message. Remove when MAF closes them in the same task.
+    if "streamable_http_client" in repr(context.get("asyncgen")):
+        return
+    loop.default_exception_handler(context)
+
+
+async def run_triage(args: argparse.Namespace) -> None:
+    from azure.identity import DefaultAzureCredential as SyncCredential
+    from azure.identity.aio import DefaultAzureCredential
+
+    settings = load_settings()
+    kb_settings = load_productos_settings()
+    asyncio.get_running_loop().set_exception_handler(_ignore_mcp_close_noise)
+    async with DefaultAzureCredential() as credential:
+        client = build_foundry_client(settings, credential)
+        agents = [
+            build_triage_agent(client, settings),
+            build_productos_agent(
+                client, kb_settings, SyncCredential(), extra_tools=[escalate_only_tool(settings)]
+            ),
+            build_agent(client, settings),
+        ]
+        try:
+            conversation = Conversation(build_workflow(*agents), settings.dev_customer_id)
+            customer = settings.dev_customer_id
+            print(f"Cliente {customer} | conversación {conversation.conversation_id}")
+
+            async def turn(text: str, decide) -> None:
+                result = await conversation.send(text, decide)
+                for source, target in result.handoffs:
+                    print(f"  -> {AGENT_LABELS[source]} transfiere a {AGENT_LABELS[target]}")
+                for agent, reply in result.replies:
+                    print(f"Agente {format_reply(agent, reply)}")
+
+            if args.ask:
+                decide = fixed_decide(args.auto_approve)  # deny unless --auto-approve
+                for question in args.ask:
+                    print(f"\nTú: {question}")
+                    await turn(question, decide)
+                return
+            print("Escribe tu consulta. Ctrl+C o 'salir' para terminar.")
+            while True:
+                text = (await asyncio.to_thread(input, "\nTú: ")).strip()
+                if text.lower() in {"salir", "exit"}:
+                    return
+                if text:
+                    await turn(text, interactive_decide)
+        finally:
+            for agent in agents:
+                await agent.close()
 
 
 async def run_productos(args: argparse.Namespace) -> None:
@@ -89,6 +155,9 @@ async def run(args: argparse.Namespace) -> None:
     if args.agent == "productos":
         await run_productos(args)
         return
+    if args.agent == "triage":
+        await run_triage(args)
+        return
 
     settings = load_settings()
     async with DefaultAzureCredential() as credential:
@@ -120,7 +189,10 @@ async def run(args: argparse.Namespace) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="agent_host", description="Agentes de Banco Andino Demo.")
     parser.add_argument(
-        "--agent", choices=["operaciones", "productos"], default="operaciones", help="Agente."
+        "--agent",
+        choices=["triage", "operaciones", "productos"],
+        default="triage",
+        help="triage (defecto) orquesta; operaciones y productos, para probarlos solos.",
     )
     parser.add_argument("--ask", action="append", help="Pregunta no interactiva (repetible).")
     mode = parser.add_mutually_exclusive_group()

@@ -9,12 +9,20 @@ from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
 from sqlalchemy import select
 
+from mcp_server import banking
 from mcp_server.db import audit_log
 from tests.conftest import A
 
 pytestmark = pytest.mark.contract
 
-TOOLS = {"get_balance", "list_transactions", "get_claim_status", "block_card", "open_claim"}
+TOOLS = {
+    "get_balance",
+    "list_transactions",
+    "get_claim_status",
+    "block_card",
+    "open_claim",
+    "escalate_to_human",
+}
 
 
 def run(url: str, headers: dict, calls):
@@ -35,7 +43,7 @@ def payload(result) -> dict:
     return json.loads(result.content[0].text)
 
 
-def test_lists_exactly_the_five_tools_without_customer_id(server):
+def test_lists_exactly_the_six_tools_without_customer_id(server):
     url, _ = server
 
     async def calls(client):
@@ -119,3 +127,15 @@ def test_healthz_answers_without_mcp_session(server):
     response = httpx2.get(url.removesuffix("/mcp") + "/healthz", timeout=5)
     assert response.status_code == 200
     assert response.text == "ok"
+
+
+def test_escalate_categories_match_the_domain_list(server):
+    url, _ = server
+
+    async def calls(client):
+        return (await client.list_tools()).tools
+
+    tool = next(t for t in run(url, {}, calls) if t.name == "escalate_to_human")
+    assert tuple(tool.input_schema["properties"]["categoria"]["enum"]) == (
+        banking.ESCALATION_CATEGORIES
+    )

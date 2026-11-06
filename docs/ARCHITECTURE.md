@@ -82,7 +82,7 @@ flowchart LR
 
     triage -->|"handoff"| operaciones
     triage -->|"handoff"| productosproxy
-    triage --> escalar["escalate_to_human(motivo)"]
+    triage --> escalar["escalate_to_human(categoria, motivo)"]
     operaciones --> escalar
     productosproxy --> escalar
 
@@ -124,6 +124,7 @@ Temas que siempre escalan: fraude, fallecimiento del titular, reclamos legales y
 | `get_claim_status(claim_id)` | Lectura | No | Valida que el reclamo pertenezca al cliente |
 | `block_card(card_id)` | Escritura | Sí | Valida pertenencia; idempotente por naturaleza |
 | `open_claim(motivo)` | Escritura | Sí | Protegida con `idempotency_key` |
+| `escalate_to_human(categoria, motivo)` | Escritura | No | Pedido de ayuda: crea un ticket. Un ticket por conversación y categoría (`idempotency_key`). Triage y Productos solo ven esta herramienta (`allowed_tools`) |
 
 Reglas del servidor MCP:
 

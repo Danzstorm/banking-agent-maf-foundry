@@ -11,7 +11,7 @@ Agente conversacional para un banco ficticio, **Banco Andino Demo**, construido 
 | Qué es | Un agente que atiende consultas de clientes bancarios y ejecuta operaciones de bajo riesgo con aprobación explícita. |
 | Qué demuestra | Diseño de agentes de IA seguros y operables: mínimo privilegio, identidad delegada, pruebas en 6 capas, observabilidad de punta a punta. |
 | Stack | Python, Microsoft Agent Framework 1.24, Microsoft Foundry (gpt-5-mini, Foundry IQ), MCP, A2A, Azure Container Apps, Azure SQL, Entra External ID, Terraform. |
-| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. **Fase 3 hecha**: agente Productos local que responde con citas desde una base de conocimiento de Foundry IQ. La arquitectura objetivo (multiagente, Entra, A2A) está diseñada y documentada. Ver [Versiones](#hoja-de-ruta). |
+| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. **Fases 3 y 4 hechas**: agente Productos que responde con citas desde Foundry IQ, y un agente Triage que deriva cada consulta con `HandoffBuilder` y escala los temas sensibles a una persona. La arquitectura objetivo (Entra, A2A, producción) está diseñada y documentada. Ver [Versiones](#hoja-de-ruta). |
 
 ## Qué hace
 
@@ -20,7 +20,7 @@ Agente conversacional para un banco ficticio, **Banco Andino Demo**, construido 
 | Responde sobre productos con citas *(v1)* | "¿Cuál es la comisión de mantenimiento de la cuenta corriente?" | Base de conocimiento en Foundry IQ; cada respuesta cita su fuente. |
 | Consulta datos del cliente *(v1)* | "¿Cuál es mi saldo?", "¿En qué va mi reclamo?" | Herramientas MCP sobre el core bancario simulado. |
 | Ejecuta operaciones de bajo riesgo *(v1)* | "Bloquea mi tarjeta" | `block_card` y `open_claim`, solo con aprobación humana explícita. |
-| Escala a una persona *(arquitectura objetivo)* | Fraude, fallecimiento del titular, reclamos legales, o falta de fuente confiable | Herramienta `escalate_to_human` que crea un ticket. |
+| Escala a una persona *(v1)* | Fraude, fallecimiento del titular, reclamos legales, o falta de fuente confiable | Herramienta `escalate_to_human` que crea un ticket. |
 
 ## Arquitectura en un vistazo
 
@@ -172,7 +172,7 @@ banking-agent-maf-foundry/
 
 ## Hoja de ruta
 
-La **v1** (fases 0 a 2) está completa y desplegada, y la fase 3 también. Las fases 4 a 8 son extensiones con diseño, decisiones y criterios de aceptación ya definidos en [docs/PLAN.md](docs/PLAN.md).
+La **v1** (fases 0 a 2) está completa y desplegada, y las fases 3 y 4 también. Las fases 4 a 8 son extensiones con diseño, decisiones y criterios de aceptación ya definidos en [docs/PLAN.md](docs/PLAN.md).
 
 | Fase | Objetivo | Estado |
 |------|----------|--------|
@@ -181,7 +181,7 @@ La **v1** (fases 0 a 2) está completa y desplegada, y la fase 3 también. Las f
 | 1.5 | Infra base en Azure (Terraform) y MCP desplegado en Container Apps | Hecha |
 | 2 | Agente MAF con aprobación humana | Hecha (v1) |
 | 3 | Base de conocimiento | Hecha |
-| 4 | Orquestación | Diseñada |
+| 4 | Orquestación | Hecha |
 | 5 | Identidad Entra | Diseñada |
 | 6 | Producción | Diseñada |
 | 7 | A2A | Diseñada |
@@ -210,8 +210,8 @@ Fase 2 (agente Operaciones en la CLI, con gpt-5-mini en Foundry y el MCP en Azur
 export FOUNDRY_PROJECT_ENDPOINT=$(terraform -chdir=infra output -raw foundry_project_endpoint)
 export MCP_URL=$(terraform -chdir=infra output -raw mcp_url)
 export DEV_CUSTOMER_ID=1
-uv run python -m agent_host                                  # chat; las escrituras piden "¿Apruebas? (s/n)"
-uv run python -m agent_host --ask "¿Cuál es mi saldo?"       # una pregunta, sin interacción
+uv run python -m agent_host --agent operaciones              # chat; las escrituras piden "¿Apruebas? (s/n)"
+uv run python -m agent_host --agent operaciones --ask "¿Cuál es mi saldo?"  # sin interacción
 uv run pytest -m azure -v                                    # escenarios con el modelo real
 ```
 
@@ -227,6 +227,16 @@ uv run python evals/run_retrieval.py                         # evaluación de re
 ```
 
 Ingesta, qué hace Foundry IQ por dentro y una transcripción real: [docs/guides/fase-3-knowledge.md](docs/guides/fase-3-knowledge.md).
+
+Fase 4 (Triage con handoff hacia Productos y Operaciones; es el modo por defecto de la CLI). Usa las variables de las fases 2 y 3 y el MCP con la imagen `mcp-server:v2`.
+
+```bash
+uv run python -m agent_host                                  # triage, interactivo
+uv run python -m agent_host --ask "Me robaron la tarjeta y hay cargos que no reconozco"
+uv run pytest -m azure tests/scenarios/test_triage_azure.py -s  # 5 ejecuciones por escenario
+```
+
+Handoff, mínimo privilegio, aprobaciones dentro del workflow y una transcripción real: [docs/guides/fase-4-orquestacion.md](docs/guides/fase-4-orquestacion.md).
 
 ## Costos
 

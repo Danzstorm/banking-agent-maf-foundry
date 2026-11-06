@@ -122,8 +122,8 @@ export FOUNDRY_MODEL_DEPLOYMENT=$(terraform -chdir=infra output -raw model_deplo
 export MCP_URL=$(terraform -chdir=infra output -raw mcp_url)
 export DEV_CUSTOMER_ID=1
 
-uv run python -m agent_host                       # chat interactivo
-uv run python -m agent_host --ask "¿Cuál es mi saldo?" --ask "Bloquea mi tarjeta" --auto-deny
+uv run python -m agent_host --agent operaciones   # chat interactivo (desde la fase 4 el defecto es triage)
+uv run python -m agent_host --agent operaciones --ask "¿Cuál es mi saldo?" --ask "Bloquea mi tarjeta" --auto-deny
 ```
 
 `--ask` se repite para varios turnos en la misma sesión. Sin `--auto-approve`, toda escritura se rechaza.
