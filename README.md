@@ -173,8 +173,9 @@ banking-agent-maf-foundry/
 
 | Fase | Objetivo | Estado |
 |------|----------|--------|
-| 0 | Documentación y estructura | En curso |
-| 1 | Core bancario simulado + servidor MCP | En curso |
+| 0 | Documentación y estructura | Hecha |
+| 1 | Core bancario simulado + servidor MCP | Hecha |
+| 1.5 | Infra base en Azure (Terraform) y MCP desplegado en Container Apps | Hecha |
 | 2 | Agente MAF mínimo | Hecha (escenarios con una ejecución; umbral 4/5 en la fase 4) |
 | 3 | Base de conocimiento | Pendiente |
 | 4 | Orquestación | Pendiente |
