@@ -84,14 +84,16 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-@pytest.fixture(scope="module")
-def server(tmp_path_factory):
+def run_server(tmp_path_factory, **extra_env):
+    """Generator: a real `python -m mcp_server` process over a fresh fixture database."""
     db_url = f"sqlite:///{tmp_path_factory.mktemp('contract') / 'contract.db'}"
     engine = make_engine(db_url)
     load_fixture(engine)
     port = _free_port()
     env = os.environ | {"DATABASE_URL": db_url, "AUTH_MODE": "dev", "MCP_PORT": str(port)}
-    proc = subprocess.Popen([sys.executable, "-m", "mcp_server"], cwd=ROOT, env=env)  # noqa: S603
+    proc = subprocess.Popen(  # noqa: S603
+        [sys.executable, "-m", "mcp_server"], cwd=ROOT, env=env | extra_env
+    )
     deadline = time.monotonic() + 20
     while True:
         try:
@@ -106,3 +108,8 @@ def server(tmp_path_factory):
     proc.terminate()
     proc.wait(timeout=10)
     engine.dispose()
+
+
+@pytest.fixture(scope="module")
+def server(tmp_path_factory):
+    yield from run_server(tmp_path_factory)

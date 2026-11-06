@@ -36,6 +36,8 @@ South Central US es la única de las cuatro que cumple todo. Fuente de AI Search
 | Storage account `stbankingagent<sufijo>` + contenedor `productos` (fase 3) | PDF de productos para Foundry IQ. Solo Entra (`shared_access_key_enabled = false`) | Centavos al mes |
 | AI Search Free `srch-banking-agent-<sufijo>` (fase 3) | Knowledge source y knowledge base de Foundry IQ. Solo Entra (`local_authentication_enabled = false`), identidad del sistema, semantic ranker en plan free | 0 |
 | Deployment `text-embedding-3-small` (GlobalStandard, 50K TPM, fase 3) | Embeddings de los fragmentos y de las consultas | 0 (pago por token) |
+| Key Vault `kv-banking-<sufijo>` + certificado `agent-obo` (fase 5) | Credencial del OBO del agente; solo RBAC | Centavos al mes (operaciones) |
+| App registrations en el tenant External ID (fase 5) | `banking-cli`, `banking-agent-api`, `banking-mcp-api` | 0 |
 | Presupuesto USD 20/mes | Alertas al 50 % y 100 % real, y 100 % pronosticado | 0 |
 
 **Costo en reposo estimado: ~USD 0,17 al día**, casi todo de ACR. El resto cobra solo por uso (tokens, segundos de contenedor, GB de logs). Aun así, ejecuta `terraform destroy` al terminar cada sesión (ADR-021).
@@ -47,9 +49,11 @@ Roles asignados:
 - Fase 3: la identidad de AI Search tiene `Storage Blob Data Reader` sobre el storage (el indexer lee los PDF) y `Cognitive Services User` sobre Foundry (embeddings). Tú tienes `Storage Blob Data Contributor`, `Search Service Contributor` y `Search Index Data Contributor` (subir PDF, crear la knowledge base y consultarla). `id-agent-host` tiene `Search Index Data Reader`.
 - Tú quedas como administrador Entra del servidor SQL.
 
-## Riesgo abierto: `AUTH_MODE=dev`
+## Identidad (fase 5)
 
-En modo dev el servidor MCP confía en el header `X-Dev-Customer-Id`. Para que nadie más pueda usarlo, el ingress solo acepta tu IP (`client_ip`). La validación JWT llega en la fase 5. Si tu IP cambia, actualiza `client_ip` y vuelve a aplicar.
+`identity.tf` crea, con el alias `azuread.external`, las apps `banking-cli`, `banking-agent-api` y `banking-mcp-api` en el tenant de Entra External ID (`external_tenant_id`), sus service principals, la preautorización y los consentimientos de administrador. También crea el Key Vault `kv-banking-<sufijo>` (RBAC, sin purge protection, 7 días de soft delete) con el certificado autofirmado `agent-obo`, cuya parte pública se sube a `banking-agent-api`. Roles: tú tienes `Key Vault Certificates Officer` y `Key Vault Secrets User`; `id-agent-host` tiene `Key Vault Secrets User`. El user flow y los clientes de prueba se crean con los scripts de `infra/identity/` (Graph). Detalle: [docs/guides/fase-5-identidad.md](../docs/guides/fase-5-identidad.md).
+
+El servidor MCP corre con `AUTH_MODE=entra` y valida el JWT en su código. El ingress sigue restringido a tu IP (`client_ip`) como defensa en profundidad mientras el agente host corre en tu máquina. Si tu IP cambia, actualiza `client_ip` y vuelve a aplicar.
 
 ## Uso
 
@@ -112,7 +116,11 @@ y vuelve a ejecutar `plan` y `apply`. El contenedor descarga la imagen con `id-m
 
 | Variable | Valor |
 |----------|-------|
-| `AUTH_MODE` | `dev` |
+| `AUTH_MODE` | `entra` (fase 5; antes `dev`) |
+| `ENTRA_TENANT_ID` | Tenant de External ID |
+| `ENTRA_ISSUER` | `https://<tenant-id>.ciamlogin.com/<tenant-id>/v2.0` |
+| `ENTRA_AUDIENCE` | Client id de `banking-mcp-api` (`aud` de los tokens v2) |
+| `ENTRA_JWKS_URI` | `https://<subdominio>.ciamlogin.com/<tenant-id>/discovery/v2.0/keys` |
 | `MCP_HOST` | `0.0.0.0` (el servidor escucha en `127.0.0.1` por defecto) |
 | `DATABASE_URL` | URL de SQLAlchemy con `ActiveDirectoryMSI` y el client id de `id-mcp-server` |
 | `AZURE_CLIENT_ID` | Client id de `id-mcp-server` |
@@ -121,7 +129,7 @@ y vuelve a ejecutar `plan` y `apply`. El contenedor descarga la imagen con `id-m
 ## Pendiente para fases siguientes
 
 - Conectar Application Insights al proyecto Foundry (tracing): se hace desde el portal de Foundry o con una conexión `azapi` en la fase de observabilidad.
-- Key Vault y app registrations de External ID (fase 5), y las apps `agent-host` y `productos-a2a`.
+- Las apps `agent-host` y `productos-a2a` en Container Apps (fases 6 y 7).
 
 ## Notas de la fase 3
 

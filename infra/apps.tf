@@ -61,7 +61,8 @@ resource "azurerm_container_app" "mcp_server" {
     target_port = local.placeholder_image ? 80 : 8000
     transport   = "auto"
 
-    # AUTH_MODE=dev trusts a header, so only the developer's IP may reach the app until phase 5.
+    # Phase 5 validates Entra JWTs in code; the IP allowlist stays as defense in depth while
+    # the agent host runs on the developer's machine (no public client should reach MCP).
     ip_security_restriction {
       name             = "allow-client-ip"
       action           = "Allow"
@@ -86,7 +87,23 @@ resource "azurerm_container_app" "mcp_server" {
 
       env {
         name  = "AUTH_MODE"
-        value = "dev"
+        value = "entra"
+      }
+      env {
+        name  = "ENTRA_TENANT_ID"
+        value = var.external_tenant_id
+      }
+      env {
+        name  = "ENTRA_ISSUER"
+        value = local.ciam_issuer
+      }
+      env {
+        name  = "ENTRA_AUDIENCE" # v2 access tokens carry the API client id as aud
+        value = azuread_application.mcp_api.client_id
+      }
+      env {
+        name  = "ENTRA_JWKS_URI"
+        value = local.ciam_jwks_uri
       }
       env {
         name  = "MCP_HOST" # server defaults to 127.0.0.1, unreachable from ingress

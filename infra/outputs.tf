@@ -77,3 +77,33 @@ output "foundry_openai_endpoint" {
   description = "Azure OpenAI-style endpoint of the Foundry account, used by the knowledge source embedding model."
   value       = "https://${azurerm_cognitive_account.foundry.custom_subdomain_name}.openai.azure.com"
 }
+
+# --- Phase 5: identity ---------------------------------------------------------
+
+output "entra_authority" {
+  value = local.ciam_authority
+}
+
+output "entra_tenant_id" {
+  value = var.external_tenant_id
+}
+
+output "cli_client_id" {
+  value = azuread_application.cli.client_id
+}
+
+output "agent_api_client_id" {
+  value = azuread_application.agent_api.client_id
+}
+
+output "mcp_api_client_id" {
+  value = azuread_application.mcp_api.client_id
+}
+
+output "key_vault_uri" {
+  value = azurerm_key_vault.main.vault_uri
+}
+
+output "obo_certificate_name" {
+  value = azurerm_key_vault_certificate.obo.name
+}

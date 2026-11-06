@@ -3,6 +3,10 @@ subscription_id = "00000000-0000-0000-0000-000000000000" # az account show --que
 alert_email     = "you@example.com"
 client_ip       = "203.0.113.10" # curl -s https://api.ipify.org
 
+# Phase 5: Entra External ID tenant (created manually, see docs/guides/fase-5-identidad.md)
+external_tenant_id        = "00000000-0000-0000-0000-000000000000"
+external_tenant_subdomain = "yourtenant" # <subdomain>.ciamlogin.com
+
 # Optional overrides
 # location       = "southcentralus"
 # budget_amount  = 20

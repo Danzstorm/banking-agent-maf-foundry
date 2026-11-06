@@ -15,6 +15,9 @@ dependencies = [
     "azure-identity>=1.27.0",
     "tenacity>=9.1.4,<9.2.0",
     "agent-framework-orchestrations>=1.4.1",
+    "pyjwt[crypto]>=2.10",
+    "msal>=1.31",
+    "azure-keyvault-secrets>=4.9",
 ]
 
 [dependency-groups]
@@ -45,8 +48,10 @@ select = ["E", "F", "W", "I", "B", "UP", "S", "SIM"]
 testpaths = ["tests"]
 pythonpath = ["."]
 # Azure scenarios hit real Foundry + MCP: opt in with `uv run pytest -m azure`.
-addopts = "-m 'not azure'"
+# Interactive ones need a human for the device code: `uv run pytest -m interactive -s`.
+addopts = "-m 'not azure and not interactive'"
 markers = [
     "contract: MCP contract tests over streamable HTTP (local, no Azure)",
     "azure: scenario tests against real Foundry and the deployed MCP server",
+    "interactive: Azure end to end that needs a human device code sign-in (phase 5)",
 ]

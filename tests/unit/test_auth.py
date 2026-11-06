@@ -27,7 +27,7 @@ def test_dev_mode_rejects_missing_or_invalid_identity(engine, monkeypatch, heade
 
 
 @pytest.mark.parametrize("mode", [None, "", "prod", "entra", "DEV"])
-def test_fails_closed_outside_dev_mode(engine, monkeypatch, mode):
+def test_dev_header_alone_never_authenticates_outside_dev_mode(engine, monkeypatch, mode):
     if mode is None:
         monkeypatch.delenv("AUTH_MODE", raising=False)
     else:

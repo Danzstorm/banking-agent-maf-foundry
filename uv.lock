@@ -213,6 +213,20 @@ wheels = [
 ]
 
 [[package]]
+name = "azure-keyvault-secrets"
+version = "4.12.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "azure-core" },
+    { name = "isodate" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/39/24/ef81175436814f088cb1b9c4252f580f1c29e8ae1ca7d01cce7f9f6c3b7a/azure_keyvault_secrets-4.12.0.tar.gz", hash = "sha256:435ea0abb5280baaad9553da7a19e73e1b581048783b852210352bfcb0316aff", size = 142105, upload-time = "2026-10-28T00:53:16.932Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2f/32/48509a0e574485003e7dc22aaebcb985555c69bdf730761427077cd6b854/azure_keyvault_secrets-4.12.0-py3-none-any.whl", hash = "sha256:ec5ff84ee0a045094e62d38e9b962769003e60fe7396d8dcf1ac4c78e7d010c6", size = 111784, upload-time = "2026-10-28T00:53:18.371Z" },
+]
+
+[[package]]
 name = "azure-storage-blob"
 version = "12.31.1"
 source = { registry = "https://pypi.org/simple" }
@@ -236,10 +250,13 @@ dependencies = [
     { name = "agent-framework-foundry" },
     { name = "agent-framework-orchestrations" },
     { name = "azure-identity" },
+    { name = "azure-keyvault-secrets" },
     { name = "faker" },
     { name = "mcp" },
+    { name = "msal" },
     { name = "mssql-python" },
     { name = "pydantic" },
+    { name = "pyjwt", extra = ["crypto"] },
     { name = "sqlalchemy" },
     { name = "tenacity" },
 ]
@@ -260,10 +277,13 @@ requires-dist = [
     { name = "agent-framework-foundry", specifier = ">=1.16.0" },
     { name = "agent-framework-orchestrations", specifier = ">=1.4.1" },
     { name = "azure-identity", specifier = ">=1.27.0" },
+    { name = "azure-keyvault-secrets", specifier = ">=4.9" },
     { name = "faker", specifier = ">=30" },
     { name = "mcp", specifier = ">=2.2,<3" },
+    { name = "msal", specifier = ">=1.31" },
     { name = "mssql-python", specifier = ">=1.17.0" },
     { name = "pydantic", specifier = ">=2.7,<3" },
+    { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },
     { name = "sqlalchemy", specifier = ">=2.0,<3" },
     { name = "tenacity", specifier = ">=9.1.4,<9.2.0" },
 ]

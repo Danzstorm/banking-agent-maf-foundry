@@ -80,3 +80,64 @@ def test_productos_json_reply_is_shown_with_sources():
     reply = '{"answer": "Cuesta S/ 10.", "sources": ["Tarifario"]}'
     assert format_reply("productos", reply) == "[Productos] Cuesta S/ 10.\nFuentes: Tarifario"
     assert format_reply("triage", "Hola") == "[Triage] Hola"
+
+
+ENTRA_ENV = ENV | {
+    "AUTH_MODE": "entra",
+    "DEV_CUSTOMER_ID": "",
+    "ENTRA_AUTHORITY": "https://tenant.ciamlogin.com/tid",
+    "ENTRA_CLI_CLIENT_ID": "cli",
+    "ENTRA_AGENT_API_CLIENT_ID": "agent",
+    "ENTRA_MCP_API_CLIENT_ID": "mcp",
+    "KEY_VAULT_URI": "https://kv.vault.azure.net/",
+}
+
+
+def test_entra_settings_derive_scopes_and_need_no_dev_customer():
+    s = load_settings(ENTRA_ENV)
+    assert s.dev_customer_id is None
+    assert (s.entra.agent_scope, s.entra.mcp_scope) == (
+        "api://agent/access_as_user",
+        "api://mcp/tools.access",
+    )
+    assert s.entra.cert_name == "agent-obo"
+
+
+@pytest.mark.parametrize(
+    "override",
+    [{"ENTRA_MCP_API_CLIENT_ID": ""}, {"KEY_VAULT_URI": "http://kv"}, {"AUTH_MODE": "x"}],
+)
+def test_invalid_entra_settings_are_rejected(override):
+    with pytest.raises(ConfigError):
+        load_settings(ENTRA_ENV | override)
+
+
+def test_entra_identity_sends_bearer_and_never_the_dev_header():
+    kwargs = {CUSTOMER_KEY: lambda: "tok", CONVERSATION_KEY: "conv-1", "customer_id": 2}
+    assert mcp_headers(kwargs) == {"Authorization": "Bearer tok", "X-Conversation-Id": "conv-1"}
+
+
+def test_failed_obo_raises_a_safe_error(monkeypatch):
+    from agent_host import identity as mod
+
+    class FakePublic:
+        def __init__(self, *a, **k):
+            pass
+
+        def get_accounts(self):
+            return [{"username": "u"}]
+
+        def acquire_token_silent(self, scopes, account):
+            return {"access_token": "user-token"}
+
+    class FakeConfidential(FakePublic):
+        def acquire_token_on_behalf_of(self, user_assertion, scopes):
+            assert (user_assertion, scopes) == ("user-token", ["api://mcp/tools.access"])
+            return {"error": "invalid_grant", "error_description": "secret details"}
+
+    monkeypatch.setattr(mod.msal, "PublicClientApplication", FakePublic)
+    monkeypatch.setattr(mod.msal, "ConfidentialClientApplication", FakeConfidential)
+    ident = mod.EntraIdentity(load_settings(ENTRA_ENV).entra, lambda: "pem")
+    with pytest.raises(mod.IdentityError) as exc:
+        ident.mcp_token()
+    assert "secret" not in str(exc.value)

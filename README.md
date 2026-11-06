@@ -182,7 +182,7 @@ La **v1** (fases 0 a 2) está completa y desplegada, y las fases 3 y 4 también.
 | 2 | Agente MAF con aprobación humana | Hecha (v1) |
 | 3 | Base de conocimiento | Hecha |
 | 4 | Orquestación | Hecha |
-| 5 | Identidad Entra | Diseñada |
+| 5 | Identidad Entra | En curso: desplegada y verificada; falta la prueba interactiva con device code |
 | 6 | Producción | Diseñada |
 | 7 | A2A | Diseñada |
 | 8 | Evaluaciones y observabilidad completas | Diseñada |
@@ -237,6 +237,16 @@ uv run pytest -m azure tests/scenarios/test_triage_azure.py -s  # 5 ejecuciones 
 ```
 
 Handoff, mínimo privilegio, aprobaciones dentro del workflow y una transcripción real: [docs/guides/fase-4-orquestacion.md](docs/guides/fase-4-orquestacion.md).
+
+Fase 5 (identidad real con Entra External ID). El MCP desplegado (`mcp-server:v3`) corre con `AUTH_MODE=entra`: valida el JWT y mapea `oid` a cliente. La CLI inicia sesión por device code y el host hace OBO con un certificado de Key Vault. Las variables `ENTRA_*` y los pasos están en la guía.
+
+```bash
+export AUTH_MODE=entra   # más ENTRA_AUTHORITY, ENTRA_*_CLIENT_ID y KEY_VAULT_URI (ver la guía)
+uv run python -m agent_host --agent operaciones       # te pide iniciar sesión con un código
+uv run pytest -m interactive -s -v                    # extremo a extremo con device code
+```
+
+Conceptos, secuencia, validación JWT y rechazos verificados: [docs/guides/fase-5-identidad.md](docs/guides/fase-5-identidad.md). Las pruebas `-m azure` de las fases 2 a 4 envían el header dev y ahora necesitan un MCP local en modo `dev`.
 
 ## Costos
 

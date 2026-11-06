@@ -14,8 +14,9 @@ import warnings
 
 from agent_framework import Content
 
-from agent_host.agent import build_agent, build_foundry_client, chat_turn, new_session
-from agent_host.config import ConfigError, load_productos_settings, load_settings
+from agent_host.agent import Identity, build_agent, build_foundry_client, chat_turn, new_session
+from agent_host.config import ConfigError, Settings, load_productos_settings, load_settings
+from agent_host.identity import EntraIdentity, IdentityError, load_certificate_pem
 from agent_host.productos import ProductAnswer, ask, build_productos_agent
 from agent_host.workflow import Conversation, build_triage_agent, build_workflow, escalate_only_tool
 
@@ -66,6 +67,17 @@ def format_reply(agent: str, text: str) -> str:
     return f"[{AGENT_LABELS.get(agent, agent)}] {text}"
 
 
+def customer_identity(settings: Settings, credential) -> tuple[Identity, str]:
+    """(identity for the MCP headers, label to show). AUTH_MODE=entra signs in by device code."""
+    if settings.entra is None:
+        return settings.dev_customer_id, f"Cliente {settings.dev_customer_id} (modo dev)"
+    entra = settings.entra
+    identity = EntraIdentity(entra, lambda: load_certificate_pem(entra, credential))
+    name = identity.sign_in()
+    identity.mcp_token()  # fail fast: OBO + Key Vault before the first question
+    return identity.mcp_token, f"Sesión iniciada: {name}"
+
+
 def _ignore_mcp_close_noise(loop: asyncio.AbstractEventLoop, context: dict) -> None:
     # ponytail: the workflow opens MCP connections inside its own tasks, so closing them from
     # the main task trips anyio's cancel-scope check at shutdown. The process is exiting and
@@ -81,6 +93,7 @@ async def run_triage(args: argparse.Namespace) -> None:
 
     settings = load_settings()
     kb_settings = load_productos_settings()
+    identity, who = customer_identity(settings, SyncCredential())
     asyncio.get_running_loop().set_exception_handler(_ignore_mcp_close_noise)
     async with DefaultAzureCredential() as credential:
         client = build_foundry_client(settings, credential)
@@ -92,9 +105,8 @@ async def run_triage(args: argparse.Namespace) -> None:
             build_agent(client, settings),
         ]
         try:
-            conversation = Conversation(build_workflow(*agents), settings.dev_customer_id)
-            customer = settings.dev_customer_id
-            print(f"Cliente {customer} | conversación {conversation.conversation_id}")
+            conversation = Conversation(build_workflow(*agents), identity)
+            print(f"{who} | conversación {conversation.conversation_id}")
 
             async def turn(text: str, decide) -> None:
                 result = await conversation.send(text, decide)
@@ -150,6 +162,7 @@ async def run_productos(args: argparse.Namespace) -> None:
 
 
 async def run(args: argparse.Namespace) -> None:
+    from azure.identity import DefaultAzureCredential as SyncCredential
     from azure.identity.aio import DefaultAzureCredential
 
     if args.agent == "productos":
@@ -160,13 +173,14 @@ async def run(args: argparse.Namespace) -> None:
         return
 
     settings = load_settings()
+    identity, who = customer_identity(settings, SyncCredential())
     async with DefaultAzureCredential() as credential:
         # No `async with agent`: that connects MCP eagerly, before a run supplies the identity
         # headers. The first run connects lazily with them; close() releases the connection.
         agent = build_agent(build_foundry_client(settings, credential), settings)
         try:
-            session = new_session(agent, settings.dev_customer_id)
-            print(f"Cliente {settings.dev_customer_id} | conversación {session.session_id}")
+            session = new_session(agent, identity)
+            print(f"{who} | conversación {session.session_id}")
             if args.ask:
                 decide = fixed_decide(args.auto_approve)  # deny unless --auto-approve
                 for question in args.ask:
@@ -208,6 +222,9 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"Configuración inválida: {exc}", file=sys.stderr)
         return 2
+    except IdentityError as exc:
+        print(f"Identidad: {exc}", file=sys.stderr)
+        return 3
     except (KeyboardInterrupt, EOFError):
         print("\nHasta luego.")
     return 0

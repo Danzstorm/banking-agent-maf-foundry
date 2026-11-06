@@ -1,9 +1,10 @@
 """Operaciones agent: MAF loop in our process, gpt-5-mini on Foundry, tools from the MCP server.
 
-Identity never comes from the model. The customer id and conversation id live in the
+Identity never comes from the model. The customer identity and conversation id live in the
 `AgentSession` (host state), travel as `function_invocation_kwargs` on every run, and the MCP
 tool's `header_provider` turns them into HTTP headers. MAF hands `header_provider` only that
-host runtime context, never model-generated arguments.
+host runtime context, never model-generated arguments. The identity is either a dev customer id
+(AUTH_MODE=dev) or a callable that returns the customer's OBO token (AUTH_MODE=entra).
 """
 
 from collections.abc import Callable, Mapping, Sequence
@@ -30,7 +31,7 @@ WRITE_TOOLS = ["block_card", "open_claim"]
 ESCALATE_TOOL = "escalate_to_human"
 
 # Keys of the host runtime context (function_invocation_kwargs). Not visible to the model.
-CUSTOMER_KEY = "dev_customer_id"
+CUSTOMER_KEY = "mcp_identity"
 # "conversation_id" itself is reserved: MAF strips it from the kwargs that reach tools.
 CONVERSATION_KEY = "mcp_conversation_id"
 
@@ -63,10 +64,12 @@ def mcp_headers(kwargs: Mapping[str, Any]) -> dict[str, str]:
 
     A missing key raises KeyError, which MAF tolerates only for connections made outside a run.
     """
-    return {
-        "X-Dev-Customer-Id": str(int(kwargs[CUSTOMER_KEY])),
-        "X-Conversation-Id": str(kwargs[CONVERSATION_KEY]),
-    }
+    identity = kwargs[CUSTOMER_KEY]
+    if callable(identity):
+        auth = {"Authorization": f"Bearer {identity()}"}
+    else:
+        auth = {"X-Dev-Customer-Id": str(int(identity))}
+    return auth | {"X-Conversation-Id": str(kwargs[CONVERSATION_KEY])}
 
 
 def build_mcp_tool(
@@ -121,10 +124,13 @@ def build_foundry_client(settings: Settings, credential: Any):
     )
 
 
-def new_session(agent: Agent, customer_id: int) -> AgentSession:
+Identity = int | Callable[[], str]  # dev customer id, or a bearer token provider
+
+
+def new_session(agent: Agent, identity: Identity) -> AgentSession:
     """One session per conversation; its random session_id is the conversation id."""
     session = agent.create_session()
-    session.state[CUSTOMER_KEY] = customer_id
+    session.state[CUSTOMER_KEY] = identity
     return session
 
 

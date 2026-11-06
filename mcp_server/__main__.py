@@ -2,12 +2,13 @@
 
 import os
 
+import uvicorn
+
+from mcp_server.auth import require_bearer
 from mcp_server.db import make_engine
 from mcp_server.server import build_server
 
 if __name__ == "__main__":
-    build_server(make_engine()).run(
-        "streamable-http",
-        host=os.environ.get("MCP_HOST", "127.0.0.1"),
-        port=int(os.environ.get("MCP_PORT", "8000")),
-    )
+    host = os.environ.get("MCP_HOST", "127.0.0.1")
+    app = build_server(make_engine()).streamable_http_app(host=host)
+    uvicorn.run(require_bearer(app), host=host, port=int(os.environ.get("MCP_PORT", "8000")))

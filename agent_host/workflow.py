@@ -19,7 +19,14 @@ from uuid import uuid4
 from agent_framework import Agent, SupportsChatGetResponse, Workflow, WorkflowEvent
 from agent_framework.orchestrations import HandoffAgentUserRequest, HandoffBuilder
 
-from agent_host.agent import CONVERSATION_KEY, CUSTOMER_KEY, ESCALATE_TOOL, Decide, build_mcp_tool
+from agent_host.agent import (
+    CONVERSATION_KEY,
+    CUSTOMER_KEY,
+    ESCALATE_TOOL,
+    Decide,
+    Identity,
+    build_mcp_tool,
+)
 from agent_host.config import Settings
 
 TRIAGE_INSTRUCTIONS = """\
@@ -96,10 +103,10 @@ class Turn:
 class Conversation:
     """One customer conversation over the handoff workflow (one workflow per conversation)."""
 
-    def __init__(self, workflow: Workflow, customer_id: int) -> None:
+    def __init__(self, workflow: Workflow, identity: Identity) -> None:
         self.workflow = workflow
         self.conversation_id = uuid4().hex
-        self._kwargs = {CUSTOMER_KEY: customer_id, CONVERSATION_KEY: self.conversation_id}
+        self._kwargs = {CUSTOMER_KEY: identity, CONVERSATION_KEY: self.conversation_id}
         self._user_request_id: str | None = None  # pending HandoffAgentUserRequest
 
     async def send(self, text: str, decide: Decide) -> Turn:

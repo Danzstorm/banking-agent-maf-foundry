@@ -14,3 +14,9 @@ provider "azurerm" {
 provider "azapi" {}
 
 provider "azuread" {}
+
+# Customers' tenant (Entra External ID). Auth: your `az login` into that tenant.
+provider "azuread" {
+  alias     = "external"
+  tenant_id = var.external_tenant_id
+}

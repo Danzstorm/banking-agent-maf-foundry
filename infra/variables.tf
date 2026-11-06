@@ -53,3 +53,13 @@ variable "embedding_capacity" {
   type        = number
   default     = 50
 }
+
+variable "external_tenant_id" {
+  description = "Entra External ID tenant (customers). Created manually once (ADR-008)."
+  type        = string
+}
+
+variable "external_tenant_subdomain" {
+  description = "Subdomain of the external tenant: <subdomain>.onmicrosoft.com and <subdomain>.ciamlogin.com."
+  type        = string
+}

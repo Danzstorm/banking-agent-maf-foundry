@@ -11,7 +11,7 @@ El proyecto avanza en 9 fases más una bonus. Cada fase entrega algo que funcion
 | [2](#fase-2-agente-maf-mínimo) | Agente MAF mínimo | Sí (Foundry mínimo) | Hecha |
 | [3](#fase-3-base-de-conocimiento) | Base de conocimiento | Sí | Pendiente |
 | [4](#fase-4-orquestación) | Orquestación | Sí | Pendiente |
-| [5](#fase-5-identidad-entra) | Identidad Entra | Sí | Pendiente |
+| [5](#fase-5-identidad-entra) | Identidad Entra | Sí | En curso |
 | [6](#fase-6-producción) | Producción | Sí | Pendiente |
 | [7](#fase-7-a2a) | A2A | Sí | Pendiente |
 | [8](#fase-8-evaluaciones-y-observabilidad-completas) | Evaluaciones y observabilidad completas | Sí | Pendiente |
@@ -161,6 +161,8 @@ Guía: [fase-2-agente.md](guides/fase-2-agente.md). La estabilidad con N ejecuci
 - [ ] No hay secretos de cliente: solo el certificado en Key Vault.
 
 **Qué enseña.** Identidad de clientes con External ID, flujo on-behalf-of, validación de tokens.
+
+**Estado (2026-11-06): en curso.** Hecho: app registrations, user flow, Key Vault con certificado, MCP `v3` en modo `entra`, clientes de prueba mapeados, pruebas unitarias y de contrato de acceso cruzado, y rechazos verificados contra el MCP desplegado (sin token, token basura, audiencia incorrecta, token sin `scp`: HTTP 401). Falta: correr la prueba interactiva `uv run pytest -m interactive -s -v` con device code y marcar los criterios. Guía: [fase-5-identidad.md](guides/fase-5-identidad.md).
 
 ---
 
