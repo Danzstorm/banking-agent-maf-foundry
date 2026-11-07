@@ -29,6 +29,20 @@ class EntraSettings:
     def mcp_scope(self) -> str:
         return f"api://{self.mcp_api_client_id}/tools.access"
 
+    # The HTTP host validates the customer's agent-API token with these. Derived from the
+    # authority with the shapes verified in Phase 5 (OIDC discovery of the external tenant).
+    @property
+    def tenant_id(self) -> str:
+        return self.authority.rsplit("/", 1)[-1]
+
+    @property
+    def issuer(self) -> str:
+        return f"https://{self.tenant_id}.ciamlogin.com/{self.tenant_id}/v2.0"
+
+    @property
+    def jwks_uri(self) -> str:
+        return f"{self.authority}/discovery/v2.0/keys"
+
 
 @dataclass(frozen=True)
 class Settings:

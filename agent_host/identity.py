@@ -40,11 +40,10 @@ def load_certificate_pem(settings: EntraSettings, credential: Any) -> str:
 class EntraIdentity:
     def __init__(self, settings: EntraSettings, load_pem: Callable[[], str]) -> None:
         self.settings = settings
-        self._load_pem = load_pem
         self._cli = msal.PublicClientApplication(
             settings.cli_client_id, authority=settings.authority
         )
-        self._obo: msal.ConfidentialClientApplication | None = None
+        self._obo = OboExchange(settings, load_pem)
 
     def sign_in(self, show: Callable[[str], None] = print) -> str:
         """Device code sign-in. Returns a display name for the signed-in customer."""
@@ -67,21 +66,37 @@ class EntraIdentity:
             raise IdentityError("La sesión expiró. Vuelve a iniciar sesión.")
         return result["access_token"]
 
-    def _obo_app(self) -> msal.ConfidentialClientApplication:
-        if self._obo is None:
-            self._obo = msal.ConfidentialClientApplication(
+    def mcp_token(self) -> str:
+        """OBO token for the MCP API, for the customer signed in to this CLI."""
+        return self._obo.mcp_token(self.user_token())
+
+
+class OboExchange:
+    """The host's confidential client: user token for the agent API -> token for the MCP API.
+
+    The HTTP host keeps one per process; MSAL caches each customer's OBO token by assertion.
+    """
+
+    def __init__(self, settings: EntraSettings, load_pem: Callable[[], str]) -> None:
+        self.settings = settings
+        self._load_pem = load_pem
+        self._app: msal.ConfidentialClientApplication | None = None
+
+    def _client(self) -> msal.ConfidentialClientApplication:
+        if self._app is None:
+            self._app = msal.ConfidentialClientApplication(
                 self.settings.agent_api_client_id,
                 authority=self.settings.authority,
                 client_credential=certificate_credential(self._load_pem()),
             )
-        return self._obo
+        return self._app
 
-    def mcp_token(self) -> str:
+    def mcp_token(self, user_assertion: str) -> str:
         """OBO token for the MCP API. MSAL serves it from cache until it nears expiry."""
         # ponytail: synchronous MSAL call inside header_provider; a refresh blocks the event
         # loop for one HTTP round trip (~hourly). Move to a thread if the host serves many users.
-        result = self._obo_app().acquire_token_on_behalf_of(
-            user_assertion=self.user_token(), scopes=[self.settings.mcp_scope]
+        result = self._client().acquire_token_on_behalf_of(
+            user_assertion=user_assertion, scopes=[self.settings.mcp_scope]
         )
         if "access_token" not in result:
             raise IdentityError("No se pudo obtener acceso al core bancario.")

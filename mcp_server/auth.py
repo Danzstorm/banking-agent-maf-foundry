@@ -52,31 +52,54 @@ def _bearer(headers: Mapping[str, str] | None) -> str:
     return token
 
 
-def validate_token(headers: Mapping[str, str] | None) -> dict[str, Any]:
-    """Claims of a valid MCP access token, or AuthError. No database access."""
-    config = {name: os.environ.get(name, "").strip() for name in ENTRA_ENV}
-    if not all(config.values()):
+def validate_jwt(
+    headers: Mapping[str, str] | None,
+    *,
+    tenant_id: str,
+    issuer: str,
+    audience: str,
+    jwks_uri: str,
+    scope: str,
+) -> dict[str, Any]:
+    """Claims of a valid Entra v2 access token for `audience` with `scope`, or AuthError.
+
+    Shared by the MCP server (tools.access) and the agent host API (access_as_user).
+    """
+    if not all((tenant_id, issuer, audience, jwks_uri, scope)):
         raise AuthError()  # misconfigured server: refuse everything
     token = _bearer(headers)
     try:
         claims = jwt.decode(
             token,
-            signing_key(token, config["ENTRA_JWKS_URI"]),
+            signing_key(token, jwks_uri),
             algorithms=["RS256"],  # never trust the token's own `alg` (no "none", no HS*)
-            audience=config["ENTRA_AUDIENCE"],
-            issuer=config["ENTRA_ISSUER"],
+            audience=audience,
+            issuer=issuer,
             leeway=CLOCK_SKEW_SECONDS,
             options={"require": ["exp", "nbf", "iss", "aud", "tid", "oid", "scp"]},
         )
     except (jwt.PyJWTError, ValueError) as exc:
         raise AuthError() from exc
-    if claims["tid"] != config["ENTRA_TENANT_ID"]:
+    if claims["tid"] != tenant_id:
         raise AuthError()
-    if REQUIRED_SCOPE not in str(claims["scp"]).split():
+    if scope not in str(claims["scp"]).split():
         raise AuthError()
     if not isinstance(claims["oid"], str) or not claims["oid"]:
         raise AuthError()
     return claims
+
+
+def validate_token(headers: Mapping[str, str] | None) -> dict[str, Any]:
+    """Claims of a valid MCP access token, or AuthError. No database access."""
+    config = {name: os.environ.get(name, "").strip() for name in ENTRA_ENV}
+    return validate_jwt(
+        headers,
+        tenant_id=config["ENTRA_TENANT_ID"],
+        issuer=config["ENTRA_ISSUER"],
+        audience=config["ENTRA_AUDIENCE"],
+        jwks_uri=config["ENTRA_JWKS_URI"],
+        scope=REQUIRED_SCOPE,
+    )
 
 
 def _lookup(engine: Engine, column, value) -> int:

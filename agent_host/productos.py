@@ -79,7 +79,7 @@ def build_kb_tool(settings: ProductosSettings, credential: Any) -> MCPStreamable
         approval_mode="never_require",  # read-only retrieval
         allowed_tools=[KB_TOOL],
         load_prompts=False,
-        request_timeout=60,
+        request_timeout=20,  # the circuit breaker (resilience.py) counts timeouts as failures
     )
 
 

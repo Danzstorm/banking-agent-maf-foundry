@@ -21,6 +21,7 @@ from agent_framework import (
     MCPStreamableHTTPTool,
     Message,
     SupportsChatGetResponse,
+    register_checkpoint_type,
 )
 
 from agent_host.config import Settings
@@ -114,15 +115,48 @@ def build_agent(
 
 
 def build_foundry_client(settings: Settings, credential: Any):
-    """FoundryChatClient over the Responses API, authenticated with an Entra credential."""
+    """FoundryChatClient over the Responses API, authenticated with an Entra credential.
+
+    Resilience (ADR-014): 60 s per model call, and our retry policy (backoff + jitter on
+    429/5xx) as client-level chat middleware. The OpenAI SDK's own 2 retries are turned off so
+    there is one policy, not retries multiplied by retries.
+    """
     from agent_framework.foundry import FoundryChatClient
 
-    return FoundryChatClient(
+    from agent_host.resilience import RetryChatMiddleware
+
+    client = FoundryChatClient(
         project_endpoint=settings.project_endpoint,
         model=settings.model_deployment,
         credential=credential,
+        middleware=[RetryChatMiddleware()],
+        timeout=60,
     )
+    client.client = client.client.with_options(max_retries=0)
+    return client
 
+
+class TokenProvider:
+    """Bearer token callable for the MCP `header_provider` (AUTH_MODE=entra in the HTTP host).
+
+    Workflow checkpoints persist the run kwargs, identity included (ADR-013). This pickles as
+    an empty provider, so no token or credential ever reaches `sesiones`; every run passes a
+    fresh one, which replaces the restored value.
+    """
+
+    def __init__(self, get_token: Callable[[], str] | None = None) -> None:
+        self._get_token = get_token
+
+    def __call__(self) -> str:
+        if self._get_token is None:
+            raise RuntimeError("Token provider restored from a checkpoint; pass a fresh one.")
+        return self._get_token()
+
+    def __reduce__(self):
+        return (TokenProvider, ())
+
+
+register_checkpoint_type(TokenProvider)
 
 Identity = int | Callable[[], str]  # dev customer id, or a bearer token provider
 
