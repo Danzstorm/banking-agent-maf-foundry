@@ -18,7 +18,9 @@ WORKDIR /app
 COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev
 
+# One image, two apps: mcp-server (default CMD) and agent-host (python -m agent_host.service).
 COPY mcp_server ./mcp_server
+COPY agent_host ./agent_host
 
 RUN useradd --create-home --uid 10001 app
 USER app

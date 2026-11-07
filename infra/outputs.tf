@@ -8,11 +8,11 @@ output "foundry_endpoint" {
 
 output "foundry_project_endpoint" {
   description = "Endpoint for FoundryChatClient / azure-ai-projects."
-  value = lookup(
-    azurerm_cognitive_account_project.main.endpoints,
-    "AI Foundry API",
-    "https://${azurerm_cognitive_account.foundry.custom_subdomain_name}.services.ai.azure.com/api/projects/${azurerm_cognitive_account_project.main.name}"
-  )
+  value       = local.foundry_project_endpoint
+}
+
+output "agent_host_url" {
+  value = "https://${azurerm_container_app.agent_host.ingress[0].fqdn}"
 }
 
 output "model_deployment_name" {

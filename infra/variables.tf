@@ -48,6 +48,12 @@ variable "mcp_image" {
   default     = "mcr.microsoft.com/k8se/quickstart:latest"
 }
 
+variable "agent_image" {
+  description = "Container image for agent-host (same image as mcp-server, other command). The placeholder lets the app exist before the image does."
+  type        = string
+  default     = "mcr.microsoft.com/k8se/quickstart:latest"
+}
+
 variable "embedding_capacity" {
   description = "text-embedding-3-small GlobalStandard capacity in thousands of tokens per minute (pay per token)."
   type        = number
