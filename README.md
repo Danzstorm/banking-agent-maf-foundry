@@ -13,6 +13,10 @@ Agente conversacional para un banco ficticio, **Banco Andino Demo**, construido 
 | Stack | Python, Microsoft Agent Framework 1.24, Microsoft Foundry (gpt-5-mini, Foundry IQ), MCP, A2A, Azure Container Apps, Azure SQL, Entra External ID, Terraform. |
 | Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. **Fases 3 a 7 desplegadas**: Productos responde con citas desde Foundry IQ, Triage deriva con `HandoffBuilder` y escala los temas sensibles, los clientes inician sesión con Entra External ID (OBO hacia el MCP), el host corre en Container Apps con sesiones durables y resiliencia, Productos es un servidor A2A con managed identity y trazas distribuidas, y la **fase 8** mide el agente con evaluaciones registradas en Foundry y un workflow con OIDC. **Todas las fases están hechas**; quedan pendientes las verificaciones que requieren inicio de sesión interactivo, la vista Compare del portal y el escaneo del red team en una región soportada. Ver [Hoja de ruta](#hoja-de-ruta). |
 
+## Guía de aprendizaje
+
+Para entender cada pieza a fondo (conceptos, servicios de Azure, construcción fase por fase, decisiones, flujos, seguridad, código y operación), lee la [guía de aprendizaje](docs/guia/README.md). Los diagramas con iconos de Azure están en [docs/diagramas](docs/diagramas/README.md).
+
 ## Qué hace
 
 | Capacidad | Ejemplo | Cómo lo resuelve |

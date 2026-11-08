@@ -17,6 +17,8 @@ El proyecto avanza en 9 fases más una bonus. Cada fase entrega algo que funcion
 | [8](#fase-8-evaluaciones-y-observabilidad-completas) | Evaluaciones y observabilidad completas | Sí | Pendiente |
 | [Bonus](#fase-bonus) | Extensiones | Sí | Pendiente |
 
+Para recorrer lo construido en cada fase con explicaciones de conceptos, servicios, decisiones y problemas resueltos, ver la [guía de aprendizaje](guia/README.md) (capítulo [03. Paso a paso](guia/03-paso-a-paso.md)).
+
 Reglas para todas las fases:
 
 - [ ] Cero secretos en el repositorio.
