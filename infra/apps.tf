@@ -230,6 +230,10 @@ resource "azurerm_container_app" "agent_host" {
           OBO_CERT_NAME             = azurerm_key_vault_certificate.obo.name
           DATABASE_URL              = "${local.sql_url_prefix}${azurerm_user_assigned_identity.agent_host.client_id}"
           AZURE_CLIENT_ID           = azurerm_user_assigned_identity.agent_host.client_id
+          # Phase 7: Productos runs remote over A2A (a2a.tf); unset = in-process Productos.
+          PRODUCTOS_A2A_URL                    = "https://${azurerm_container_app.productos_a2a.ingress[0].fqdn}/"
+          PRODUCTOS_A2A_SCOPE                  = "api://${azuread_application.productos_a2a.client_id}/.default"
+          OTEL_INSTRUMENTATION_A2A_SDK_ENABLED = "false" # agent_host/telemetry.py
         }
         content {
           name  = env.key

@@ -8,7 +8,7 @@ one generic message, so a caller never learns which check failed.
 """
 
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from typing import Any
 
@@ -56,17 +56,22 @@ def validate_jwt(
     headers: Mapping[str, str] | None,
     *,
     tenant_id: str,
-    issuer: str,
-    audience: str,
+    issuer: str | Sequence[str],
+    audience: str | Sequence[str],
     jwks_uri: str,
-    scope: str,
+    scope: str | None = None,
+    role: str | None = None,
 ) -> dict[str, Any]:
-    """Claims of a valid Entra v2 access token for `audience` with `scope`, or AuthError.
+    """Claims of a valid Entra access token for `audience`, or AuthError.
 
-    Shared by the MCP server (tools.access) and the agent host API (access_as_user).
+    Pass exactly one of `scope` (delegated token, `scp` claim) or `role` (app-only token,
+    `roles` claim). Shared by the MCP server (tools.access), the agent host API
+    (access_as_user) and the Productos A2A server (Productos.Invoke, ADR-015).
     """
-    if not all((tenant_id, issuer, audience, jwks_uri, scope)):
+    wanted = scope or role
+    if not all((tenant_id, issuer, audience, jwks_uri, wanted)) or (scope and role):
         raise AuthError()  # misconfigured server: refuse everything
+    claim = "scp" if scope else "roles"
     token = _bearer(headers)
     try:
         claims = jwt.decode(
@@ -76,13 +81,14 @@ def validate_jwt(
             audience=audience,
             issuer=issuer,
             leeway=CLOCK_SKEW_SECONDS,
-            options={"require": ["exp", "nbf", "iss", "aud", "tid", "oid", "scp"]},
+            options={"require": ["exp", "nbf", "iss", "aud", "tid", "oid", claim]},
         )
     except (jwt.PyJWTError, ValueError) as exc:
         raise AuthError() from exc
     if claims["tid"] != tenant_id:
         raise AuthError()
-    if scope not in str(claims["scp"]).split():
+    granted = str(claims["scp"]).split() if scope else claims["roles"]
+    if not isinstance(granted, list) or wanted not in granted:
         raise AuthError()
     if not isinstance(claims["oid"], str) or not claims["oid"]:
         raise AuthError()

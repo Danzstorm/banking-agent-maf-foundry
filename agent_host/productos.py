@@ -10,6 +10,7 @@ import time
 from collections.abc import Sequence
 from typing import Any
 
+import httpx
 from agent_framework import Agent, AgentSession, MCPStreamableHTTPTool, SupportsChatGetResponse
 from pydantic import BaseModel, Field
 
@@ -53,20 +54,21 @@ class ProductAnswer(BaseModel):
 
 
 class SearchTokenHeaders:
-    """`header_provider` that adds an Entra bearer token for Azure AI Search.
+    """`header_provider` that adds an Entra bearer token (Azure AI Search by default).
 
     Takes a sync credential (MAF calls header providers synchronously) and caches the token
     until five minutes before it expires, so tool calls don't fetch one each time.
     """
 
-    def __init__(self, credential: Any, refresh_margin_s: int = 300) -> None:
+    def __init__(self, credential: Any, refresh_margin_s: int = 300, scope: str = SEARCH_SCOPE):
         self._credential = credential
         self._margin = refresh_margin_s
+        self._scope = scope
         self._token: Any = None
 
     def __call__(self, _kwargs: dict[str, Any]) -> dict[str, str]:
         if self._token is None or self._token.expires_on - self._margin <= time.time():
-            self._token = self._credential.get_token(SEARCH_SCOPE)
+            self._token = self._credential.get_token(self._scope)
         return {"Authorization": f"Bearer {self._token.token}"}
 
 
@@ -83,6 +85,86 @@ def build_kb_tool(settings: ProductosSettings, credential: Any) -> MCPStreamable
     )
 
 
+DESCRIPTION = "Responde sobre productos, tarifas, requisitos y procesos del banco."
+A2A_TOOL = "consultar_productos"
+
+PROXY_INSTRUCTIONS = f"""\
+Eres el asistente de productos de Banco Andino Demo, un banco ficticio. Hablas en español neutro \
+y tratas al cliente de tú. No tienes conocimiento propio de productos: lo consultas a un servicio \
+remoto.
+
+Reglas:
+- Para toda pregunta sobre productos, tarifas, comisiones, requisitos o procesos del banco, llama \
+a {A2A_TOOL} con la pregunta del cliente reformulada para que se entienda sola (sin "eso" ni \
+"la otra"), en español.
+- El resultado es un JSON con `answer` y `sources`: copia ambos tal cual en tu respuesta. No \
+agregues información que no esté en `answer`.
+- Si el resultado dice que el servicio no está disponible, sigue sus indicaciones.
+- No tienes acceso a datos personales del cliente: saldos, movimientos, tarjetas, reclamos ni \
+datos de otras personas. Si te los piden, no llames a la herramienta: responde que no puedes \
+consultarlos aquí y que el asistente de operaciones puede ayudarle. Deja `sources` vacío.
+"""
+
+
+class BearerAuth(httpx.Auth):
+    """httpx auth that adds the managed-identity token for the Productos A2A app (ADR-015)."""
+
+    def __init__(self, headers: SearchTokenHeaders) -> None:
+        self._headers = headers
+
+    def auth_flow(self, request: httpx.Request):
+        # ponytail: the token is fetched with a sync credential on the event loop; it is cached
+        # for its lifetime (~24 h for managed identities), so it blocks once a day per replica.
+        request.headers.update(self._headers({}))
+        yield request
+
+
+def build_remote_productos(url: str, scope: str, credential: Any) -> tuple[Any, httpx.AsyncClient]:
+    """The A2A client for the remote Productos agent, and the httpx client the caller closes.
+
+    Built once per process and shared by every request: the httpx pool and the token cache
+    outlive the per-request agents.
+    """
+    from agent_framework.a2a import A2AAgent
+
+    http = httpx.AsyncClient(
+        auth=BearerAuth(SearchTokenHeaders(credential, scope=scope)),
+        # Scale from zero takes a few seconds; the answer itself (model + retrieval) up to ~30 s.
+        timeout=httpx.Timeout(60, connect=15),
+    )
+    return A2AAgent(name="productos-a2a", description=DESCRIPTION, url=url, http_client=http), http
+
+
+def build_productos_proxy(
+    client: SupportsChatGetResponse,
+    remote: Any,
+    *,
+    extra_tools: Sequence[Any] = (),
+    middleware: Sequence[Any] | None = None,
+) -> Agent:
+    """Local stand-in for Productos inside the handoff workflow; answers through A2A.
+
+    HandoffBuilder only accepts local `Agent` participants, so the remote agent is one tool of
+    this proxy. Guard that tool with `ResilientTools(breaker, guarded=A2A_TOOL)`.
+    """
+    tool = remote.as_tool(
+        name=A2A_TOOL,
+        description="Consulta la base de conocimiento de productos de Banco Andino Demo.",
+        arg_name="pregunta",
+        arg_description="Pregunta del cliente, completa y en español.",
+    )
+    return Agent(
+        client=client,
+        name="productos",
+        description=DESCRIPTION,
+        instructions=PROXY_INSTRUCTIONS,
+        tools=[tool, *extra_tools],
+        default_options={"reasoning": {"effort": "low"}, "response_format": ProductAnswer},
+        middleware=middleware,
+        require_per_service_call_history_persistence=True,
+    )
+
+
 def build_productos_agent(
     client: SupportsChatGetResponse,
     settings: ProductosSettings,
@@ -95,7 +177,7 @@ def build_productos_agent(
     return Agent(
         client=client,
         name="productos",
-        description="Responde sobre productos, tarifas, requisitos y procesos del banco.",
+        description=DESCRIPTION,
         instructions=INSTRUCTIONS,
         tools=[build_kb_tool(settings, search_credential), *extra_tools],
         # ADR-002, ADR-018. response_format here too so it holds inside the handoff workflow,

@@ -39,7 +39,7 @@ from starlette.routing import Route
 
 from agent_host.agent import CONVERSATION_KEY, CUSTOMER_KEY, Identity, TokenProvider
 from agent_host.cli import _ignore_mcp_close_noise, reply_text
-from agent_host.config import Settings
+from agent_host.config import ConfigError, Settings
 from agent_host.sessions import (
     SqlCheckpointStorage,
     customer_by_oid,
@@ -328,12 +328,21 @@ async def production_host():
     from agent_host.agent import build_agent, build_foundry_client
     from agent_host.config import load_productos_settings, load_settings
     from agent_host.identity import OboExchange, load_certificate_pem
-    from agent_host.productos import KB_TOOL, build_productos_agent
+    from agent_host.productos import (
+        A2A_TOOL,
+        KB_TOOL,
+        build_productos_agent,
+        build_productos_proxy,
+        build_remote_productos,
+    )
     from agent_host.resilience import CircuitBreaker, ResilientTools
     from agent_host.workflow import build_triage_agent, escalate_only_tool
 
+    env = os.environ
     settings = load_settings()
-    kb_settings = load_productos_settings()
+    # Phase 7: with PRODUCTOS_A2A_URL, Productos runs remote (A2A, ADR-015); otherwise in-process.
+    a2a_url = env.get("PRODUCTOS_A2A_URL", "").strip()
+    kb_settings = None if a2a_url else load_productos_settings()
     engine = sessions_engine(os.environ.get("DATABASE_URL", "sqlite:///./data/banco.db"))
     sync_credential = SyncCredential()
     if settings.entra is None:
@@ -343,24 +352,38 @@ async def production_host():
         obo = OboExchange(entra, lambda: load_certificate_pem(entra, sync_credential))
         authenticate = entra_authenticator(settings, engine, obo)
     breaker = CircuitBreaker()  # shared by every request of this replica
-    async with DefaultAzureCredential() as credential:
+    remote, a2a_http = None, None
+    if a2a_url:
+        scope = _a2a_scope(env.get("PRODUCTOS_A2A_SCOPE", ""))
+        remote, a2a_http = build_remote_productos(a2a_url, scope, sync_credential)
+    async with DefaultAzureCredential() as credential, contextlib.AsyncExitStack() as stack:
+        if a2a_http is not None:
+            stack.push_async_callback(a2a_http.aclose)
         client = build_foundry_client(settings, credential)
+
+        def productos() -> Agent:
+            # The breaker guards the knowledge base (local) or the A2A call (remote). Open, the
+            # model gets BREAKER_FALLBACK and offers a human advisor (escalate_to_human).
+            escalate = [escalate_only_tool(settings)]
+            if remote is None:
+                return build_productos_agent(
+                    client,
+                    kb_settings,
+                    sync_credential,
+                    extra_tools=escalate,
+                    middleware=[ResilientTools(breaker, guarded=KB_TOOL)],
+                )
+            guard = [ResilientTools(breaker, guarded=A2A_TOOL)]
+            return build_productos_proxy(client, remote, extra_tools=escalate, middleware=guard)
 
         def participants() -> list[Agent]:
             tools = [ResilientTools()]
             return [
                 build_triage_agent(client, settings, middleware=tools),
-                build_productos_agent(
-                    client,
-                    kb_settings,
-                    sync_credential,
-                    extra_tools=[escalate_only_tool(settings)],
-                    middleware=[ResilientTools(breaker, guarded=KB_TOOL)],
-                ),
+                productos(),
                 build_agent(client, settings, middleware=tools),
             ]
 
-        env = os.environ
         yield Host(
             engine=engine,
             authenticate=authenticate,
@@ -370,9 +393,20 @@ async def production_host():
                 burst=int(env.get("RATE_LIMIT_BURST", "10")),
             ),
             max_message_chars=int(env.get("MAX_MESSAGE_CHARS", "2000")),
-            status=lambda: {"knowledge_breaker": breaker.state},
+            status=lambda: {
+                "productos": "a2a" if remote else "local",
+                "knowledge_breaker": breaker.state,
+            },
         )
     engine.dispose()
+
+
+def _a2a_scope(scope: str) -> str:
+    """`api://<productos-a2a client id>/.default`: the managed identity asks for app roles."""
+    scope = scope.strip()
+    if not (scope.startswith("api://") and scope.endswith("/.default")):
+        raise ConfigError("PRODUCTOS_A2A_SCOPE debe ser api://<client-id>/.default.")
+    return scope
 
 
 def main() -> None:
@@ -380,8 +414,12 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
+    from agent_host.telemetry import configure_telemetry
+
+    app = create_app()
+    configure_telemetry("agent-host", app)
     uvicorn.run(
-        create_app(),
+        app,
         host=os.environ.get("AGENT_BIND", "127.0.0.1"),
         port=int(os.environ.get("AGENT_PORT", "8080")),
         proxy_headers=True,

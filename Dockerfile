@@ -18,7 +18,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock .python-version ./
 RUN uv sync --frozen --no-dev
 
-# One image, two apps: mcp-server (default CMD) and agent-host (python -m agent_host.service).
+# One image, three apps: mcp-server (default CMD), agent-host (python -m agent_host.service)
+# and productos-a2a (python -m agent_host.productos_a2a).
 COPY mcp_server ./mcp_server
 COPY agent_host ./agent_host
 

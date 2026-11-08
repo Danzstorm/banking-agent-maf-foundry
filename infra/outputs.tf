@@ -107,3 +107,15 @@ output "key_vault_uri" {
 output "obo_certificate_name" {
   value = azurerm_key_vault_certificate.obo.name
 }
+
+# --- Phase 7: A2A -----------------------------------------------------------------
+
+output "productos_a2a_url" {
+  description = "Internal URL of the Productos A2A server (card at .well-known/agent-card.json)."
+  value       = "https://${azurerm_container_app.productos_a2a.ingress[0].fqdn}/"
+}
+
+output "productos_a2a_client_id" {
+  description = "Audience of the service token (api://<client id>/.default)."
+  value       = azuread_application.productos_a2a.client_id
+}
