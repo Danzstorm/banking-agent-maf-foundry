@@ -6,15 +6,15 @@ El proyecto avanza en 9 fases más una bonus. Cada fase entrega algo que funcion
 
 | Fase | Objetivo | Requiere Azure | Estado |
 |------|----------|----------------|--------|
-| [0](#fase-0-documentación-y-estructura) | Documentación y estructura | No | En curso |
-| [1](#fase-1-core-bancario-simulado-y-servidor-mcp) | Core bancario simulado + servidor MCP | No | En curso |
+| [0](#fase-0-documentación-y-estructura) | Documentación y estructura | No | Hecha |
+| [1](#fase-1-core-bancario-simulado-y-servidor-mcp) | Core bancario simulado + servidor MCP | No | Hecha |
 | [2](#fase-2-agente-maf-mínimo) | Agente MAF mínimo | Sí (Foundry mínimo) | Hecha |
-| [3](#fase-3-base-de-conocimiento) | Base de conocimiento | Sí | Pendiente |
-| [4](#fase-4-orquestación) | Orquestación | Sí | Pendiente |
-| [5](#fase-5-identidad-entra) | Identidad Entra | Sí | En curso |
+| [3](#fase-3-base-de-conocimiento) | Base de conocimiento | Sí | Hecha |
+| [4](#fase-4-orquestación) | Orquestación | Sí | Hecha |
+| [5](#fase-5-identidad-entra) | Identidad Entra | Sí | Hecha (e2e interactivo pendiente) |
 | [6](#fase-6-producción) | Producción | Sí | Hecha (prueba de carga pendiente) |
-| [7](#fase-7-a2a) | A2A | Sí | Pendiente |
-| [8](#fase-8-evaluaciones-y-observabilidad-completas) | Evaluaciones y observabilidad completas | Sí | Pendiente |
+| [7](#fase-7-a2a) | A2A | Sí | Hecha (verificaciones con /chat pendientes) |
+| [8](#fase-8-evaluaciones-y-observabilidad-completas) | Evaluaciones y observabilidad completas | Sí | Hecha (red team y Compare pendientes) |
 | [Bonus](#fase-bonus) | Extensiones | Sí | Pendiente |
 
 Para recorrer lo construido en cada fase con explicaciones de conceptos, servicios, decisiones y problemas resueltos, ver la [guía de aprendizaje](guia/README.md) (capítulo [03. Paso a paso](guia/03-paso-a-paso.md)).
