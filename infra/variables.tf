@@ -69,3 +69,9 @@ variable "external_tenant_subdomain" {
   description = "Subdomain of the external tenant: <subdomain>.onmicrosoft.com and <subdomain>.ciamlogin.com."
   type        = string
 }
+
+variable "github_repository" {
+  description = "owner/name of the GitHub repository whose main branch may run the evaluations workflow (OIDC subject)."
+  type        = string
+  default     = "Danzstorm/banking-agent-maf-foundry"
+}

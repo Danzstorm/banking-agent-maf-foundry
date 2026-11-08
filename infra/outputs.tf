@@ -119,3 +119,8 @@ output "productos_a2a_client_id" {
   description = "Audience of the service token (api://<client id>/.default)."
   value       = azuread_application.productos_a2a.client_id
 }
+
+output "github_evals_client_id" {
+  description = "Client id of the GitHub Actions app (repo variable AZURE_CLIENT_ID)."
+  value       = azuread_application.github_evals.client_id
+}

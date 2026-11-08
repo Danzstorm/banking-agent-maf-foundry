@@ -1,0 +1,69 @@
+name: Evals
+
+# On demand only (ADR-020): the evaluations need the Azure infrastructure to exist.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Evaluate only the first N cases (0 = all)."
+        default: "0"
+      dataset:
+        description: "Dataset under evals/."
+        default: "cases.jsonl"
+        type: choice
+        options: [cases.jsonl, adversarial_cases.jsonl]
+
+permissions:
+  contents: read
+  id-token: write # OIDC token for azure/login; no secrets
+
+jobs:
+  evals:
+    runs-on: ubuntu-latest
+    env:
+      # Repository variables (not secrets): ids only, the federated credential does the rest.
+      FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+      SEARCH_ENDPOINT: ${{ vars.SEARCH_ENDPOINT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked --group evals
+
+      - name: Unit and contract tests
+        run: uv run pytest -q --junitxml=pytest.xml
+
+      - name: Pytest summary
+        if: always()
+        shell: python
+        run: |
+          import os, xml.etree.ElementTree as ET
+          root = ET.parse("pytest.xml").getroot()
+          s = root if root.tag == "testsuite" else root.find("testsuite")
+          total, failed = int(s.get("tests")), int(s.get("failures")) + int(s.get("errors"))
+          skipped = int(s.get("skipped"))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("## Pytest\n\n| Pruebas | Pasan | Fallan | Omitidas | Tiempo (s) |\n")
+              f.write("|---|---|---|---|---|\n")
+              f.write(f"| {total} | {total - failed - skipped} | {failed} | {skipped} | {float(s.get('time')):.1f} |\n\n")
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+          allow-no-subscriptions: true # the identity only has resource-scoped data roles
+
+      # The deployed MCP is internal-only; the runner starts a local MCP (seeded SQLite) and
+      # uses the real Foundry model and knowledge base. Results go to Foundry > Evaluations.
+      - name: Evaluations
+        run: >
+          uv run python -m evals.run_evals
+          --dataset evals/${{ inputs.dataset }}
+          --limit ${{ inputs.limit }}
+          --name gh-${{ github.run_id }}
+
+      - name: Evaluation summary
+        if: always()
+        run: cat evals/results/gh-${{ github.run_id }}/summary.md >> "$GITHUB_STEP_SUMMARY" || true

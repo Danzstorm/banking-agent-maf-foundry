@@ -29,6 +29,9 @@ dev = [
     "pytest>=8",
     "ruff>=0.6",
 ]
+evals = [
+    "azure-ai-evaluation[redteam]>=1.18",
+]
 knowledge = [
     "fpdf2>=2.9.0",
     "markdown>=3.11.3",
