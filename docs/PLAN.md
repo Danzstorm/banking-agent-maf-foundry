@@ -234,11 +234,11 @@ Guía: [fase-2-agente.md](guides/fase-2-agente.md). La estabilidad con N ejecuci
 
 **Criterios de aceptación.**
 
-- [ ] Las ejecuciones aparecen en Foundry > Evaluations con detalle por fila.
-- [ ] Dos ejecuciones se pueden comparar en el portal.
-- [ ] El Job Summary muestra tablas de pytest y evaluaciones.
-- [ ] La autenticación del workflow usa OIDC, sin secretos.
-- [ ] Los resultados del red team quedan documentados.
+- [x] Las ejecuciones aparecen en Foundry > Evaluations con detalle por fila.
+- [ ] Dos ejecuciones se pueden comparar en el portal. Pendiente: `cases-run1` y `cases-run2` existen con detalle por fila; falta abrir la vista Compare en el portal.
+- [x] El Job Summary muestra tablas de pytest y evaluaciones.
+- [x] La autenticación del workflow usa OIDC, sin secretos.
+- [x] Los resultados del red team quedan documentados (casos adversariales propios; el escaneo del AI Red Teaming Agent queda pendiente por región, ver la [guía](guides/fase-8-evaluaciones.md)).
 
 **Qué enseña.** Evaluación de agentes, red teaming, observabilidad de sistemas con LLM.
 

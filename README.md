@@ -11,7 +11,7 @@ Agente conversacional para un banco ficticio, **Banco Andino Demo**, construido 
 | Qué es | Un agente que atiende consultas de clientes bancarios y ejecuta operaciones de bajo riesgo con aprobación explícita. |
 | Qué demuestra | Diseño de agentes de IA seguros y operables: mínimo privilegio, identidad delegada, pruebas en 6 capas, observabilidad de punta a punta. |
 | Stack | Python, Microsoft Agent Framework 1.24, Microsoft Foundry (gpt-5-mini, Foundry IQ), MCP, A2A, Azure Container Apps, Azure SQL, Entra External ID, Terraform. |
-| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. **Fases 3 a 7 desplegadas**: Productos responde con citas desde Foundry IQ, Triage deriva con `HandoffBuilder` y escala los temas sensibles, los clientes inician sesión con Entra External ID (OBO hacia el MCP), el host corre en Container Apps con sesiones durables y resiliencia, y Productos es un servidor A2A con managed identity y trazas distribuidas. Quedan pendientes las verificaciones que requieren inicio de sesión interactivo. Ver [Versiones](#hoja-de-ruta). |
+| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. **Fases 3 a 7 desplegadas**: Productos responde con citas desde Foundry IQ, Triage deriva con `HandoffBuilder` y escala los temas sensibles, los clientes inician sesión con Entra External ID (OBO hacia el MCP), el host corre en Container Apps con sesiones durables y resiliencia, Productos es un servidor A2A con managed identity y trazas distribuidas, y la **fase 8** mide el agente con evaluaciones registradas en Foundry y un workflow con OIDC. **Todas las fases están hechas**; quedan pendientes las verificaciones que requieren inicio de sesión interactivo, la vista Compare del portal y el escaneo del red team en una región soportada. Ver [Hoja de ruta](#hoja-de-ruta). |
 
 ## Qué hace
 
@@ -172,7 +172,7 @@ banking-agent-maf-foundry/
 
 ## Hoja de ruta
 
-La **v1** (fases 0 a 2) está completa y desplegada, y las fases 3 a 7 también, con algunas verificaciones interactivas pendientes. La fase 8 y la fase bonus tienen diseño, decisiones y criterios de aceptación ya definidos en [docs/PLAN.md](docs/PLAN.md).
+Las fases 0 a 8 están completas y desplegadas, con algunas verificaciones pendientes (listadas abajo). La fase bonus tiene diseño, decisiones y criterios de aceptación definidos en [docs/PLAN.md](docs/PLAN.md).
 
 | Fase | Objetivo | Estado |
 |------|----------|--------|
@@ -185,7 +185,7 @@ La **v1** (fases 0 a 2) está completa y desplegada, y las fases 3 a 7 también,
 | 5 | Identidad Entra | En curso: desplegada y verificada; falta la prueba interactiva con device code |
 | 6 | Producción | Hecha: desplegada y verificada; falta la prueba de carga |
 | 7 | A2A | Hecha: desplegada y verificada; faltan la conversación por `/chat`, la prueba con Productos detenido en Azure y A2A Inspector |
-| 8 | Evaluaciones y observabilidad completas | Diseñada |
+| 8 | Evaluaciones y observabilidad completas | Hecha: evaluaciones en Foundry, workflow con OIDC y tracing conectado; faltan la vista Compare en el portal y el escaneo del red team en una región soportada |
 | Bonus | Hosted agents, RAG manual, UI web, doble OBO | Diseñada |
 
 Detalle y criterios de aceptación en [docs/PLAN.md](docs/PLAN.md).
@@ -255,6 +255,25 @@ uv run pytest -q -m contract tests/contract/test_a2a_interop.py   # JSON-RPC cru
 ```
 
 Autenticación entre servicios, trazas, verificación en Azure y pendientes: [docs/guides/fase-7-a2a.md](docs/guides/fase-7-a2a.md).
+
+Fase 8 (evaluaciones y observabilidad). El runner conduce el workflow de triage contra un MCP local con el seed (el MCP desplegado es interno), con el modelo y Foundry IQ reales, y registra cada ejecución en Foundry > Evaluations.
+
+```bash
+uv sync --group evals
+uv run --group evals python -m evals.run_evals --name baseline   # 26 casos con jueces
+gh workflow run evals.yml -f limit=6                              # mismo runner en GitHub, con OIDC
+```
+
+Pendientes por fase:
+
+| Fase | Pendiente |
+|------|-----------|
+| 5 | Prueba interactiva con device code |
+| 6 | Prueba de carga |
+| 7 | Conversación por `/chat`, Productos detenido en Azure, A2A Inspector |
+| 8 | Vista Compare en el portal, escaneo del AI Red Teaming Agent en una región soportada |
+
+Dataset, jueces, resultados, red team y vista Agents: [docs/guides/fase-8-evaluaciones.md](docs/guides/fase-8-evaluaciones.md).
 
 ## Costos
 
