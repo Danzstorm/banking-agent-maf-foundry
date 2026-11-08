@@ -209,12 +209,12 @@ Guía: [fase-2-agente.md](guides/fase-2-agente.md). La estabilidad con N ejecuci
 
 **Criterios de aceptación.**
 
-- [ ] `curl` a `/.well-known/agent-card.json` devuelve la card.
-- [ ] `SendMessage` directo funciona sin router.
-- [ ] El test de interoperabilidad pasa sin MAF ni cliente a2a-sdk.
-- [ ] A2A Inspector conecta y conversa.
-- [ ] Una conversación genera una sola traza distribuida en Application Insights.
-- [ ] Con Productos detenido, Triage escala a una persona.
+- [x] `curl` a `/.well-known/agent-card.json` devuelve la card (desde dentro del entorno: el ingress es interno).
+- [x] `SendMessage` directo funciona sin router (con token de managed identity; sin token responde 401).
+- [x] El test de interoperabilidad pasa sin MAF ni cliente a2a-sdk.
+- [ ] A2A Inspector conecta y conversa. Pendiente: verificación manual.
+- [ ] Una conversación genera una sola traza distribuida en Application Insights. Pendiente: la propagación entre el host y Productos está verificada; falta la conversación por `/chat`, que requiere device code.
+- [ ] Con Productos detenido, Triage escala a una persona. Pendiente: cubierto por prueba unitaria; falta repetirlo sobre el despliegue (requiere `/chat`).
 
 **Qué enseña.** Protocolo A2A, autenticación entre servicios, propagación de contexto de traza, circuit breakers.
 

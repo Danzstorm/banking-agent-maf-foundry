@@ -473,9 +473,9 @@ flowchart BT
 
 Pruebas específicas de A2A:
 
-- [ ] `curl` a la agent card.
-- [ ] `SendMessage` directo, sin router.
-- [ ] Test de interoperabilidad con JSON-RPC crudo en `httpx` (sin MAF ni cliente a2a-sdk).
+- [x] `curl` a la agent card.
+- [x] `SendMessage` directo, sin router.
+- [x] Test de interoperabilidad con JSON-RPC crudo en `httpx` (sin MAF ni cliente a2a-sdk).
 - [ ] Verificación manual con A2A Inspector (`ghcr.io/a2aproject/a2a-inspector`).
 - [ ] Una sola traza de punta a punta en Application Insights.
 - [ ] Productos detenido: la conversación escala a una persona.

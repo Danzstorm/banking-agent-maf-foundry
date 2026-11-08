@@ -11,7 +11,7 @@ Agente conversacional para un banco ficticio, **Banco Andino Demo**, construido 
 | Qué es | Un agente que atiende consultas de clientes bancarios y ejecuta operaciones de bajo riesgo con aprobación explícita. |
 | Qué demuestra | Diseño de agentes de IA seguros y operables: mínimo privilegio, identidad delegada, pruebas en 6 capas, observabilidad de punta a punta. |
 | Stack | Python, Microsoft Agent Framework 1.24, Microsoft Foundry (gpt-5-mini, Foundry IQ), MCP, A2A, Azure Container Apps, Azure SQL, Entra External ID, Terraform. |
-| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. **Fases 3 y 4 hechas**: agente Productos que responde con citas desde Foundry IQ, y un agente Triage que deriva cada consulta con `HandoffBuilder` y escala los temas sensibles a una persona. La arquitectura objetivo (Entra, A2A, producción) está diseñada y documentada. Ver [Versiones](#hoja-de-ruta). |
+| Estado | **v1 completa**: agente Operaciones con aprobación humana, servidor MCP y Azure SQL desplegados en Azure con Terraform. **Fases 3 a 7 desplegadas**: Productos responde con citas desde Foundry IQ, Triage deriva con `HandoffBuilder` y escala los temas sensibles, los clientes inician sesión con Entra External ID (OBO hacia el MCP), el host corre en Container Apps con sesiones durables y resiliencia, y Productos es un servidor A2A con managed identity y trazas distribuidas. Quedan pendientes las verificaciones que requieren inicio de sesión interactivo. Ver [Versiones](#hoja-de-ruta). |
 
 ## Qué hace
 
@@ -40,7 +40,7 @@ flowchart LR
     productos -.-> ai
 ```
 
-El diagrama muestra la arquitectura objetivo. La v1 implementa el agente Operaciones (MAF + Foundry), el servidor MCP y Azure SQL en Azure Container Apps. Detalle completo en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+El diagrama muestra la arquitectura desplegada: agente host, servidor MCP y agente Productos (A2A) en Azure Container Apps, con Azure SQL, Foundry IQ y Entra External ID. Detalle completo en [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## MAF y Foundry: quién hace qué
 
@@ -172,7 +172,7 @@ banking-agent-maf-foundry/
 
 ## Hoja de ruta
 
-La **v1** (fases 0 a 2) está completa y desplegada, y las fases 3 y 4 también. Las fases 4 a 8 son extensiones con diseño, decisiones y criterios de aceptación ya definidos en [docs/PLAN.md](docs/PLAN.md).
+La **v1** (fases 0 a 2) está completa y desplegada, y las fases 3 a 7 también, con algunas verificaciones interactivas pendientes. La fase 8 y la fase bonus tienen diseño, decisiones y criterios de aceptación ya definidos en [docs/PLAN.md](docs/PLAN.md).
 
 | Fase | Objetivo | Estado |
 |------|----------|--------|
@@ -184,7 +184,7 @@ La **v1** (fases 0 a 2) está completa y desplegada, y las fases 3 y 4 también.
 | 4 | Orquestación | Hecha |
 | 5 | Identidad Entra | En curso: desplegada y verificada; falta la prueba interactiva con device code |
 | 6 | Producción | Hecha: desplegada y verificada; falta la prueba de carga |
-| 7 | A2A | Diseñada |
+| 7 | A2A | Hecha: desplegada y verificada; faltan la conversación por `/chat`, la prueba con Productos detenido en Azure y A2A Inspector |
 | 8 | Evaluaciones y observabilidad completas | Diseñada |
 | Bonus | Hosted agents, RAG manual, UI web, doble OBO | Diseñada |
 
@@ -247,6 +247,14 @@ uv run pytest -m interactive -s -v                    # extremo a extremo con de
 ```
 
 Conceptos, secuencia, validación JWT y rechazos verificados: [docs/guides/fase-5-identidad.md](docs/guides/fase-5-identidad.md). Las pruebas `-m azure` de las fases 2 a 4 envían el header dev y ahora necesitan un MCP local en modo `dev`.
+
+Fase 7 (Productos remoto por A2A). `productos-a2a` corre como Container App con ingress interno y expone la card en `/.well-known/agent-card.json` y JSON-RPC (`SendMessage`, `A2A-Version: 1.0`). El host lo llama con un token de su managed identity cuando `PRODUCTOS_A2A_URL` está definida; si no, usa Productos en proceso.
+
+```bash
+uv run pytest -q -m contract tests/contract/test_a2a_interop.py   # JSON-RPC crudo con httpx, sin Azure
+```
+
+Autenticación entre servicios, trazas, verificación en Azure y pendientes: [docs/guides/fase-7-a2a.md](docs/guides/fase-7-a2a.md).
 
 ## Costos
 

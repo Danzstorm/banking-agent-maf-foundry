@@ -129,7 +129,10 @@ y vuelve a ejecutar `plan` y `apply`. El contenedor descarga la imagen con `id-m
 ## Pendiente para fases siguientes
 
 - Conectar Application Insights al proyecto Foundry (tracing): se hace desde el portal de Foundry o con una conexión `azapi` en la fase de observabilidad.
-- Las apps `agent-host` y `productos-a2a` en Container Apps (fases 6 y 7).
+
+## Notas de la fase 7
+
+`a2a.tf` crea la identidad `id-productos-a2a` (`AcrPull`, `Foundry User` y `Search Index Data Reader`), la app `banking-productos-a2a` en el tenant **workforce** (provider `azuread` por defecto) con el app role `Productos.Invoke` asignado solo a `id-agent-host`, y la Container App `productos-a2a` con ingress interno. Requiere permisos para crear app registrations y asignar app roles en ese tenant. Detalle: [docs/guides/fase-7-a2a.md](../docs/guides/fase-7-a2a.md).
 
 ## Notas de la fase 3
 
