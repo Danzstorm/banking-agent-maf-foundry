@@ -207,14 +207,25 @@ def to_row(case: dict[str, Any], trace: dict[str, Any]) -> dict[str, Any]:
             }
         )
     messages.append({"role": "assistant", "content": [{"type": "text", "text": response}]})
-    context = "\n\n".join(f"{c['name']}: {c.get('result', '')}" for c in calls)
+    # Approvals happen in the host's approval dialog, outside the chat: without this note the
+    # judges see a write with no consent, and a denied write with no trace at all.
+    approvals = [
+        f"[Diálogo de aprobación del sistema] El cliente {'aprobó' if ok else 'rechazó'} "
+        f"la ejecución de {tool}." + ("" if ok else " La herramienta devolvió 'rejected by user'.")
+        for tool, ok in trace["approvals"]
+    ]
+    turns = [*case["turns"], *approvals]
+    context = "\n\n".join(
+        [f"{c['name']}: {c.get('result', '')}" for c in calls]
+        + [f"{tool}: rejected by user" for tool, ok in trace["approvals"] if not ok]
+    )
     return {
         "id": case["id"],
         "category": case["category"],
         "group": case.get("group", ""),
-        "query": "\n".join(case["turns"]),
+        "query": "\n".join(turns),
         "query_messages": [
-            {"role": "user", "content": [{"type": "text", "text": t}]} for t in case["turns"]
+            {"role": "user", "content": [{"type": "text", "text": t}]} for t in turns
         ],
         "response": response,
         "messages": messages,
@@ -279,20 +290,18 @@ class ExpectationsEvaluator:
         return {"passed": float(not failures), "reason": "; ".join(failures) or "ok"}
 
 
-def consistency(rows: list[dict[str, Any]]) -> dict[str, tuple[int, int, bool]]:
-    """Per group: (rows passing, rows, every row with the same figures and the same sources)."""
+def consistency(rows: list[dict[str, Any]]) -> dict[str, tuple[int, int, bool, bool]]:
+    """Per group: (rows passing, rows, same figures in every row, same sources in every row)."""
     groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         if row["group"]:
             groups[row["group"]].append(row)
     out = {}
     for name, members in groups.items():
-        signatures = {
-            (tuple(sorted(set(re.findall(r"\d+(?:[.,]\d+)?", r["response"])))), tuple(r["sources"]))
-            for r in members
-        }
+        figures = {frozenset(re.findall(r"\d+(?:[.,]\d+)?", r["response"])) for r in members}
+        sources = {frozenset(r["sources"]) for r in members}
         passed = sum(not check(r) for r in members)
-        out[name] = (passed, len(members), len(signatures) == 1)
+        out[name] = (passed, len(members), len(figures) == 1, len(sources) == 1)
     return out
 
 
@@ -339,9 +348,9 @@ def evaluate(rows_file: Path, out_dir: Path, name: str, project: str | None, mod
     }
     config = {
         # Without `response`, rows with no tool calls are "not applicable" instead of judged.
-        "tool_call_accuracy": {
-            "column_mapping": {k: data % k for k in ("query", "tool_calls", "tool_definitions")}
-        },
+        # Messages, not bare calls: the judge needs the get_balance result to see where the
+        # card_id came from. Rows without tool calls come out "not applicable".
+        "tool_call_accuracy": {"column_mapping": agent_mapping},
         "intent_resolution": {"column_mapping": agent_mapping},
         "task_adherence": {"column_mapping": agent_mapping},
         "relevance": {"column_mapping": mapping},
@@ -389,14 +398,19 @@ def summary(name: str, rows: list[dict[str, Any]], result: dict | None) -> str:
         metrics = result.get("metrics", {})
         lines += ["| Métrica | Valor |", "|---|---|"]
         for key, value in sorted(metrics.items()):
-            if key.split(".")[0] in (*JUDGES, "expectations") and "token" not in key:
+            name, _, metric = key.partition(".")
+            if metric in (name, "binary_aggregate", "passed"):
                 lines.append(f"| `{key}` | {value:.2f} |")
         lines.append("")
     groups = consistency(rows)
     if groups:
-        lines += ["| Consistencia | Correctas | Misma cifra y fuente |", "|---|---|---|"]
-        for group, (ok, n, same) in groups.items():
-            lines.append(f"| {group} | {ok}/{n} | {'sí' if same else 'no'} |")
+        lines += [
+            "| Consistencia | Correctas | Mismas cifras | Mismas fuentes |",
+            "|---|---|---|---|",
+        ]
+        for group, (ok, n, figures, sources) in groups.items():
+            yes = {True: "sí", False: "no"}
+            lines.append(f"| {group} | {ok}/{n} | {yes[figures]} | {yes[sources]} |")
         lines.append("")
     by_id = {r.get("inputs.id"): r for r in (result or {}).get("rows", [])}
     header = "| Caso | Categoría | Checks | " + " | ".join(JUDGES) + " |"

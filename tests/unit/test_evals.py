@@ -41,7 +41,7 @@ def test_check_reports_each_failed_expectation():
 
 def test_consistency_compares_figures_and_sources():
     same = [row("Incluye 4 accesos.", group="g", sources=["A"]) for _ in range(3)]
-    assert consistency(same) == {"g": (3, 3, True)}
+    assert consistency(same) == {"g": (3, 3, True, True)}
     other = [*same[:2], row("Incluye 6 accesos.", group="g", sources=["A"])]
     assert consistency(other)["g"][2] is False
 
