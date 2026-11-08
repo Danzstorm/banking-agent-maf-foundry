@@ -41,6 +41,29 @@ Cada flecha indica el protocolo y la autenticación (por ejemplo, "MCP streamabl
 | 6. Modelo de datos | Las 9 tablas de `sqldb-banking` con columnas, claves y relaciones |
 | 7. CI/CD y evaluaciones | `ci.yml` en cada push, `evals.yml` con OIDC, el runner con MCP local y la publicación en Foundry Evaluations |
 
+GitHub no muestra archivos `.drawio`, por eso cada página está exportada a PNG en [png/](png/):
+
+### 1. Arquitectura general
+![Arquitectura general](png/01-arquitectura-general.png)
+
+### 2. Identidad y tokens
+![Identidad y tokens](png/02-identidad-tokens.png)
+
+### 3. Red y conectividad
+![Red y conectividad](png/03-red-conectividad.png)
+
+### 4. Flujo de una conversación
+![Flujo de una conversación](png/04-flujo-conversacion.png)
+
+### 5. A2A y trazas
+![A2A y trazas](png/05-a2a-trazas.png)
+
+### 6. Modelo de datos
+![Modelo de datos](png/06-modelo-datos.png)
+
+### 7. CI/CD y evaluaciones
+![CI/CD y evaluaciones](png/07-ci-cd-evaluaciones.png)
+
 ## Cómo se generó
 
 El archivo se generó con un script que calcula las coordenadas sobre una cuadrícula y verifica que ninguna figura se solape. Si lo editas a mano en draw.io, guarda como XML sin comprimir (**File > Properties > Compressed** desactivado) para que los cambios se vean en los diffs.
