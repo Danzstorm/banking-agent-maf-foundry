@@ -20,6 +20,7 @@ Run locally: uv run python -m agent_host.service   (AGENT_BIND, AGENT_PORT, DATA
 import asyncio
 import contextlib
 import json
+import logging
 import os
 import time
 from collections.abc import Awaitable, Callable, Sequence
@@ -48,6 +49,8 @@ from agent_host.sessions import (
 )
 from agent_host.workflow import build_workflow
 from mcp_server.auth import AuthError, validate_jwt
+
+log = logging.getLogger("agent_host.service")
 
 AGENT_SCOPE = "access_as_user"
 MAX_BODY_BYTES = 16_384
@@ -281,6 +284,7 @@ def create_app(host: Host | None = None) -> Starlette:
             except TimeoutError as exc:
                 raise HttpError(504, "Tiempo agotado.", text=ESCALATION_OFFER) from exc
             except Exception as exc:  # model/MCP down after retries: degrade, don't hang
+                log.exception("turn failed: conversation %s", conversation_id)
                 raise HttpError(503, "Servicio no disponible.", text=ESCALATION_OFFER) from exc
             finally:
                 for agent in agents:
@@ -373,6 +377,8 @@ async def production_host():
 
 def main() -> None:
     import uvicorn
+
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     uvicorn.run(
         create_app(),

@@ -183,7 +183,7 @@ La **v1** (fases 0 a 2) está completa y desplegada, y las fases 3 y 4 también.
 | 3 | Base de conocimiento | Hecha |
 | 4 | Orquestación | Hecha |
 | 5 | Identidad Entra | En curso: desplegada y verificada; falta la prueba interactiva con device code |
-| 6 | Producción | Diseñada |
+| 6 | Producción | Hecha: desplegada y verificada; falta la prueba de carga |
 | 7 | A2A | Diseñada |
 | 8 | Evaluaciones y observabilidad completas | Diseñada |
 | Bonus | Hosted agents, RAG manual, UI web, doble OBO | Diseñada |

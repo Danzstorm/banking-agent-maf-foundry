@@ -33,9 +33,7 @@ locals {
   sql_url_prefix = "mssql+mssqlpython://@${local.sql_fqdn}:1433/${local.sql_db_name}?Authentication=ActiveDirectoryMSI&Encrypt=yes&UID="
   database_url   = "${local.sql_url_prefix}${azurerm_user_assigned_identity.mcp_server.client_id}"
 
-  # Built from the environment domain, not from the app, so the MCP allowlist can reference the
-  # agent host outbound IPs without a dependency cycle.
-  mcp_fqdn          = "mcp-server.${azurerm_container_app_environment.main.default_domain}"
+  mcp_fqdn          = azurerm_container_app.mcp_server.ingress[0].fqdn # internal: mcp-server.internal.<domain>
   agent_placeholder = var.agent_image == "mcr.microsoft.com/k8se/quickstart:latest"
   foundry_project_endpoint = lookup(
     azurerm_cognitive_account_project.main.endpoints,
@@ -67,30 +65,13 @@ resource "azurerm_container_app" "mcp_server" {
   }
 
   ingress {
-    external_enabled = true
+    # Phase 6: internal only. Reachable from apps in this environment (the agent host), never
+    # from the internet. JWT validation (ADR-010) still runs on every call. An IP allowlist
+    # cannot do this job: calls between apps of one environment arrive from internal IPs.
+    external_enabled = false
     # The quickstart placeholder listens on 80; our server listens on 8000.
     target_port = local.placeholder_image ? 80 : 8000
     transport   = "auto"
-
-    # Phase 5 validates Entra JWTs in code; the IP allowlist stays as defense in depth while
-    # the agent host runs on the developer's machine (no public client should reach MCP).
-    ip_security_restriction {
-      name             = "allow-client-ip"
-      action           = "Allow"
-      ip_address_range = "${var.client_ip}/32"
-    }
-
-    # Phase 6: the agent host runs in Container Apps and calls MCP through its public FQDN.
-    # ponytail: consumption environments share outbound IPs that can change on platform
-    # maintenance; a VNet with a NAT gateway gives a fixed egress IP if this ever matters.
-    dynamic "ip_security_restriction" {
-      for_each = toset(azurerm_container_app.agent_host.outbound_ip_addresses)
-      content {
-        name             = "allow-agent-host-${replace(ip_security_restriction.value, ".", "-")}"
-        action           = "Allow"
-        ip_address_range = "${ip_security_restriction.value}/32"
-      }
-    }
 
     traffic_weight {
       latest_revision = true

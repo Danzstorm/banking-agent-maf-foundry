@@ -12,7 +12,7 @@ El proyecto avanza en 9 fases más una bonus. Cada fase entrega algo que funcion
 | [3](#fase-3-base-de-conocimiento) | Base de conocimiento | Sí | Pendiente |
 | [4](#fase-4-orquestación) | Orquestación | Sí | Pendiente |
 | [5](#fase-5-identidad-entra) | Identidad Entra | Sí | En curso |
-| [6](#fase-6-producción) | Producción | Sí | Pendiente |
+| [6](#fase-6-producción) | Producción | Sí | Hecha (prueba de carga pendiente) |
 | [7](#fase-7-a2a) | A2A | Sí | Pendiente |
 | [8](#fase-8-evaluaciones-y-observabilidad-completas) | Evaluaciones y observabilidad completas | Sí | Pendiente |
 | [Bonus](#fase-bonus) | Extensiones | Sí | Pendiente |
@@ -182,14 +182,16 @@ Guía: [fase-2-agente.md](guides/fase-2-agente.md). La estabilidad con N ejecuci
 
 **Criterios de aceptación.**
 
-- [ ] Matar una réplica a mitad de conversación no la interrumpe.
-- [ ] Una aprobación pendiente sobrevive al reinicio.
-- [ ] Un 429 simulado se reintenta con backoff.
-- [ ] Indirect Attack detection aparece habilitada en la RAI policy.
-- [ ] Ningún servicio usa connection strings con contraseña.
-- [ ] La prueba de carga documenta latencia y tasa de errores.
+- [x] Matar una réplica a mitad de conversación no la interrumpe.
+- [x] Una aprobación pendiente sobrevive al reinicio.
+- [x] Un 429 simulado se reintenta con backoff.
+- [x] Indirect Attack detection aparece habilitada en la RAI policy.
+- [x] Ningún servicio usa connection strings con contraseña.
+- [ ] La prueba de carga documenta latencia y tasa de errores (pendiente: requiere inicio de sesión interactivo, ver guía).
 
 **Qué enseña.** Estado durable, resiliencia, guardrails de plataforma, operación en Container Apps.
+
+**Estado (2026-11-08): hecha, con la prueba de carga pendiente.** Guía: [fase-6-produccion.md](guides/fase-6-produccion.md).
 
 ---
 

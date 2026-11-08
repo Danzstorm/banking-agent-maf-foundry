@@ -11,6 +11,7 @@ All users share one customer, so the per-user rate limit (20/min, burst 10) is p
 measured: 429 answers are counted apart from real failures.
 """
 
+import os
 import random
 
 from locust import HttpUser, between, events, task
@@ -27,9 +28,22 @@ QUESTIONS = [
 identity = None
 
 
+class GivenToken:
+    """AGENT_TOKEN from a script that already signed in (one device code for a whole run)."""
+
+    def __init__(self, token: str) -> None:
+        self._token = token
+
+    def user_token(self) -> str:
+        return self._token
+
+
 @events.test_start.add_listener
 def sign_in(environment, **_):
     global identity
+    if token := os.environ.get("AGENT_TOKEN"):
+        identity = GivenToken(token)
+        return
     identity, who = remote_auth()
     if identity is None:
         raise SystemExit("AUTH_MODE=entra es obligatorio contra el host desplegado.")

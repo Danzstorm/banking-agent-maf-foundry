@@ -178,5 +178,5 @@ Rechazos verificados contra el MCP desplegado (2026-11-06): sin token, header de
 
 ## Defensa en profundidad
 
-- El ingress de `mcp-server` sigue restringido a tu IP (`client_ip`): el agente host todavía corre en tu máquina. Se quita cuando el host corra en Azure (fase 6) y se reemplace por red privada o por la restricción a la salida del host.
+- Durante esta fase el ingress de `mcp-server` estaba restringido a tu IP (`client_ip`), porque el agente host corría en tu máquina. En la [fase 6](fase-6-produccion.md#mcp-con-ingress-interno) el ingress pasó a ser interno y la restricción por IP se quitó.
 - Las pruebas de escenarios de las fases 2 a 4 (`-m azure`) envían el header dev, así que ya no funcionan contra el MCP desplegado en modo `entra`. Córrelas contra un MCP local en modo `dev` (`MCP_URL=http://127.0.0.1:8000/mcp`) o adáptalas a tokens en la fase 6.

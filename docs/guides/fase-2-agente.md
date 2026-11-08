@@ -114,7 +114,7 @@ sequenceDiagram
 
 ## Cómo ejecutarlo
 
-Requisitos: `az login` con un usuario que tenga el rol **Foundry User** en la cuenta de Foundry, tu IP en `client_ip` (ingress del MCP) y el seed cargado ([fase 1.5](fase-1-5-azure.md)).
+Requisitos: `az login` con un usuario que tenga el rol **Foundry User** en la cuenta de Foundry, acceso al MCP (en esta fase, tu IP en `client_ip`; desde la [fase 6](fase-6-produccion.md#mcp-con-ingress-interno) el ingress es interno y desde tu máquina se usa un MCP local) y el seed cargado ([fase 1.5](fase-1-5-azure.md)).
 
 ```bash
 export FOUNDRY_PROJECT_ENDPOINT=$(terraform -chdir=infra output -raw foundry_project_endpoint)
@@ -190,6 +190,6 @@ Trayectoria: [('get_balance', {}), ('block_card', {'card_id': 2})]
 | Síntoma | Causa probable |
 |---------|----------------|
 | `401`/`403` de Foundry | El rol Foundry User aún no se propaga (espera unos minutos) o `az login` está en otra cuenta. |
-| `403` del MCP | Tu IP cambió: compara `curl -s https://api.ipify.org` con `client_ip` en `infra/dev.tfvars`. |
+| El MCP desplegado no responde desde tu máquina | Desde la fase 6 su ingress es interno: usa un MCP local (`MCP_URL=http://127.0.0.1:8000/mcp`). |
 | `Function get_balance failed (KeyError)` | Llamaste `agent.run` sin `function_invocation_kwargs=run_kwargs(session)`. |
 | `MCP subscription recovery requires tenacity` | Falta `tenacity` (MAF la necesita para MCP y no la declara salvo en el extra `all`). `uv sync` la instala. |

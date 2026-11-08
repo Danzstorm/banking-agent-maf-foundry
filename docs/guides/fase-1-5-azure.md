@@ -82,7 +82,7 @@ Con una imagen distinta del placeholder, Terraform cambia el puerto del ingress 
 
 ### 5. Probar contra la URL pública
 
-El ingress solo acepta tu IP (`client_ip`).
+En esta fase el ingress solo acepta tu IP (`client_ip`). Desde la [fase 6](fase-6-produccion.md#mcp-con-ingress-interno) es interno y no responde desde tu máquina.
 
 ```bash
 MCP_URL=$(terraform -chdir=infra output -raw mcp_url)
@@ -109,5 +109,4 @@ az containerapp logs show -g "$(terraform -chdir=infra output -raw resource_grou
 |---------|----------------|
 | `Login failed for user '<token-identified principal>'` en el contenedor | Falta el paso 1 (usuario `id-mcp-server` en la base). |
 | `CREATE TABLE permission denied` al arrancar el contenedor | Falta el paso 2 (seed). Al arrancar, el servidor crea las tablas que no existan, y la identidad no tiene permisos de DDL. |
-| 403 desde Container Apps | Tu IP cambió: actualiza `client_ip` y vuelve a aplicar. |
 | El seed no conecta desde tu máquina | `az login` en otra cuenta o suscripción, o tu IP no es la de `client_ip` (firewall de SQL). |
