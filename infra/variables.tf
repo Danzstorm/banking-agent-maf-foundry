@@ -70,8 +70,8 @@ variable "external_tenant_subdomain" {
   type        = string
 }
 
-variable "github_repository" {
-  description = "owner/name of the GitHub repository whose main branch may run the evaluations workflow (OIDC subject)."
+variable "github_oidc_subject" {
+  description = "OIDC subject GitHub presents for workflows on main. GitHub uses the immutable form with owner and repository ids (repo:<owner>@<id>/<repo>@<id>:ref:refs/heads/main); copy it from a failed azure/login log (AADSTS700213)."
   type        = string
-  default     = "Danzstorm/banking-agent-maf-foundry"
+  default     = "repo:Danzstorm@54243238/banking-agent-maf-foundry@1448574164:ref:refs/heads/main"
 }

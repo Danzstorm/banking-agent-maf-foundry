@@ -14,10 +14,10 @@ resource "azuread_service_principal" "github_evals" {
 resource "azuread_application_federated_identity_credential" "github_main" {
   application_id = azuread_application.github_evals.id
   display_name   = "github-main"
-  description    = "GitHub Actions, ${var.github_repository}, branch main."
+  description    = "GitHub Actions, Danzstorm/banking-agent-maf-foundry, branch main."
   audiences      = ["api://AzureADTokenExchange"]
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_repository}:ref:refs/heads/main"
+  subject        = var.github_oidc_subject
 }
 
 # The same two data-plane roles the agent host uses for the model and the knowledge base. Foundry
