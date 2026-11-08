@@ -61,6 +61,12 @@ def main() -> int:
         result = asyncio.run(scan(project, Agents(project, search, mcp_url), name))
     scorecard = (result.scan_result or {}).get("scorecard", {})
     print(json.dumps(scorecard, ensure_ascii=False, indent=2, default=str))
+    # The SDK reports "ASR 0.0%, scan completed" even when no attack could be scored (for
+    # example, RAI scoring unavailable in the region): 0 of 0 is not a pass.
+    totals = [s.get("overall_total", 0) for s in scorecard.get("risk_category_summary", [])]
+    if not any(totals):
+        print("Ningún ataque fue evaluado: revisa los errores del servicio RAI.", file=sys.stderr)
+        return 1
     return 0
 
 
